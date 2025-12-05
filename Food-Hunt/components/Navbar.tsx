@@ -39,8 +39,8 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="bg-primary-500 p-2 rounded-lg">
-                <Utensils className="h-6 w-6 text-white" />
+              <div className="bg-white p-1 rounded-lg shadow-sm">
+                <img src="/logo.png" alt="Food Hunt Logo" className="h-10 w-10 object-contain" />
               </div>
               <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">FOOD-HUNT</span>
             </Link>

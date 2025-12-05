@@ -2,15 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, initializeFirestore } from "firebase/firestore";
 
-// TODO: Replace the following with your app's Firebase project configuration
-// See: https://firebase.google.com/docs/web/setup#config-object
+// Firebase configuration using environment variables
 const firebaseConfig = {
-    apiKey: "AIzaSyCNC_80YujtU_O3wtk4tKgw24jdfXZquRs",
-    authDomain: "food-hunt-101.firebaseapp.com",
-    projectId: "food-hunt-101",
-    storageBucket: "food-hunt-101.firebasestorage.app",
-    messagingSenderId: "23751876828",
-    appId: "1:23751876828:web:fdd3db56a631d389629419"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
