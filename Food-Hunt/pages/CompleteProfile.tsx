@@ -1,16 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { auth } from '../services/firebase';
+import { supabase } from '../services/supabase';
 
 const CompleteProfile: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { completeGoogleSignup } = useAuth();
-    const firebaseUser = location.state?.firebaseUser;
+    // For Supabase, we might not pass user in state because OAuth redirects. 
+    // We rely on getting the current session.
+    const firebaseUser = location.state?.firebaseUser; // Kept for types/legacy, but likely undefined with Supabase OAuth
 
     const [formData, setFormData] = useState({
-        // college_id: '', // No longer needed
         name: '',
         semester: '',
     });
@@ -18,39 +20,24 @@ const CompleteProfile: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const checkAuth = () => {
-            // 1. Prefer passed state
-            if (firebaseUser) {
-                setFormData(prev => ({
-                    ...prev,
-                    name: firebaseUser.displayName || '',
-                }));
-                return;
-            }
+        const checkAuth = async () => {
+            // 1. Check Supabase Session
+            const { data: { user } } = await supabase.auth.getUser();
 
-            // 2. Fallback to active session
-            const currentUser = auth.currentUser;
-            if (currentUser) {
+            if (user) {
                 setFormData(prev => ({
                     ...prev,
-                    name: currentUser.displayName || '',
+                    name: user.user_metadata?.full_name || '',
                 }));
             } else {
-                // 3. No user found, redirect to login
+                // No user found, redirect to login
                 navigate('/login');
             }
         };
 
-        // Small delay to ensure auth state is initialized if coming from a hard refresh
-        // Alternatively, we could rely on onAuthStateChanged but useAuth already does that partially.
-        // However, useAuth user object might be null if the firestore doc doesn't exist yet (which is true for new users).
-        // So we must rely on the raw firebase auth state.
-
-        // Since auth is initialized asynchronously, we might need to wait for it.
-        // But for simplicity in this synchronous check:
         checkAuth();
 
-    }, [firebaseUser, navigate]);
+    }, [navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -60,19 +47,15 @@ const CompleteProfile: React.FC = () => {
         e.preventDefault();
         setError('');
 
-        // if (formData.college_id.length !== 8) {
-        //     setError('College ID must be exactly 8 characters.');
-        //     return;
-        // }
-
-        const userToComplete = firebaseUser || auth.currentUser;
-        if (!userToComplete) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
             setError('No authenticated user found.');
             return;
         }
 
         setLoading(true);
-        const res = await completeGoogleSignup(formData, userToComplete);
+        // We reuse completeGoogleSignup interface but pass the Supabase user
+        const res = await completeGoogleSignup(formData, user);
         setLoading(false);
 
         if (res.success) {
@@ -81,8 +64,6 @@ const CompleteProfile: React.FC = () => {
             setError(res.message);
         }
     };
-
-
 
     return (
         <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
@@ -93,16 +74,6 @@ const CompleteProfile: React.FC = () => {
                 {error && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">College ID (8 chars)</label>
-                        <input
-                            name="college_id" type="text" maxLength={8} required
-                            className="w-full p-3 border rounded-lg dark:bg-dark-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                            placeholder="e.g. 20230001"
-                            value={formData.college_id} onChange={handleChange}
-                        />
-                    </div> */}
-
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
                         <input

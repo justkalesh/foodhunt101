@@ -18,8 +18,8 @@ const VendorList: React.FC = () => {
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
 
   // Derived Options
-  const locations = Array.from(new Set(vendors.map(v => v.location))).filter(Boolean);
-  const origins = Array.from(new Set(vendors.map(v => v.origin_tag))).filter(Boolean);
+  const locations = Array.from(new Set(vendors.map(v => v.location))).filter((l): l is string => !!l);
+  const origins = Array.from(new Set(vendors.map(v => v.origin_tag))).filter((o): o is string => !!o);
 
   const toggleSelection = (list: string[], item: string, setList: (l: string[]) => void) => {
     if (list.includes(item)) {
@@ -78,6 +78,8 @@ const VendorList: React.FC = () => {
       res.sort((a, b) => b.avg_price_per_meal - a.avg_price_per_meal);
     } else if (sortBy === 'cheapest_desc') {
       res.sort((a, b) => b.lowest_item_price - a.lowest_item_price);
+    } else if (sortBy === 'cheapest_asc') {
+      res.sort((a, b) => a.lowest_item_price - b.lowest_item_price);
     }
 
     setFiltered(res);
@@ -129,9 +131,14 @@ const VendorList: React.FC = () => {
             <div className="p-5">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 truncate pr-2">{vendor.name}</h3>
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap">
-                  Min ₹{vendor.lowest_item_price}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap">
+                    Min ₹{vendor.lowest_item_price}
+                  </span>
+                  <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap border border-blue-100 dark:border-blue-800">
+                    Avg ₹{vendor.avg_price_per_meal}
+                  </span>
+                </div>
               </div>
 
               <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 line-clamp-2">{vendor.description}</p>
@@ -186,6 +193,7 @@ const VendorList: React.FC = () => {
                     { label: 'Avg Price: Low to High', value: 'avg_asc' },
                     { label: 'Avg Price: High to Low', value: 'avg_desc' },
                     { label: 'Cheapest Item: High to Low', value: 'cheapest_desc' },
+                    { label: 'Cheapest Item: Low to High', value: 'cheapest_asc' },
                   ].map((option) => (
                     <label key={option.value} className="flex items-center gap-3 p-3 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-dark-800 cursor-pointer transition-colors">
                       <input
@@ -211,8 +219,8 @@ const VendorList: React.FC = () => {
                       key={loc}
                       onClick={() => toggleSelection(selectedLocations, loc, setSelectedLocations)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${selectedLocations.includes(loc)
-                          ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                          : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
+                        ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
+                        : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
                         }`}
                     >
                       {loc}
@@ -230,8 +238,8 @@ const VendorList: React.FC = () => {
                       key={origin}
                       onClick={() => toggleSelection(selectedOrigins, origin, setSelectedOrigins)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${selectedOrigins.includes(origin)
-                          ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                          : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
+                        ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
+                        : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
                         }`}
                     >
                       {origin}

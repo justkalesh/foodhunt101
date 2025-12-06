@@ -1,29 +1,35 @@
-import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+
+import { supabase } from './supabase';
 import { Vendor, MenuItem, UserRole } from '../types';
-import { doc, setDoc } from 'firebase/firestore';
 
 export const seedDatabase = async () => {
     try {
         // Check if data already exists to prevent duplicates
-        const vendorSnap = await getDocs(collection(db, 'vendors'));
+        const { data: vendorSnap, error: vendorError } = await supabase.from('vendors').select('*');
+        if (vendorError) throw vendorError;
 
-        // Always ensure system user exists
+        // Ensure system user logic is a bit different in SQL. 
+        // We can try to insert it, if it exists (constraint error), ignore.
         const systemUser = {
-            id: 'yCQPgtxNaYODawOaP8BEtDONSUE2',
+            id: 'foodhunt101lpu@gmail.com',
             email: 'foodhunt101lpu@gmail.com',
             name: 'Food Hunt Admin',
-            role: UserRole.ADMIN,
+            role: 'admin', // Use string literal matching definition
             semester: 'N/A',
             is_disabled: false,
             created_at: new Date().toISOString(),
             loyalty_points: 0,
             pfp_url: 'https://cdn-icons-png.flaticon.com/512/2304/2304226.png'
         };
-        await setDoc(doc(db, 'users', systemUser.id), systemUser);
-        console.log('System user ensured.');
 
-        if (!vendorSnap.empty) {
+        const { error: userError } = await supabase.from('users').insert(systemUser);
+        if (userError && userError.code !== '23505') { // 23505 is unique violation
+            console.log("System user ensure error (likely exists):", userError.message);
+        } else {
+            console.log('System user ensured.');
+        }
+
+        if (vendorSnap && vendorSnap.length > 0) {
             return { success: false, message: 'Database already has data! (System user ensured)' };
         }
 
@@ -61,7 +67,8 @@ export const seedDatabase = async () => {
         ];
 
         for (const v of vendors) {
-            const vRef = await addDoc(collection(db, 'vendors'), v);
+            const { data: vRef, error: vError } = await supabase.from('vendors').insert(v).select().single();
+            if (vError) throw vError;
             console.log(`Added vendor: ${v.name}`);
 
             // Add Menu Items for this vendor
@@ -86,9 +93,8 @@ export const seedDatabase = async () => {
                 );
             }
 
-            for (const item of items) {
-                await addDoc(collection(db, 'menu_items'), item);
-            }
+            const { error: itemsError } = await supabase.from('menu_items').insert(items);
+            if (itemsError) throw itemsError;
         }
 
         return { success: true, message: 'Database seeded successfully!' };

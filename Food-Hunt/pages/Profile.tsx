@@ -218,11 +218,7 @@ const Profile: React.FC = () => {
                   <div className="space-y-3 text-sm">
                      <p className="text-gray-600 dark:text-gray-300">Need assistance? Contact us:</p>
                      <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                        <div className="font-medium text-gray-900 dark:text-white mb-1">Message Admin</div>
-                        <div className="text-primary-600 font-mono">@ADMIN0001</div>
-                     </div>
-                     <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                        <div className="font-medium text-gray-900 dark:text-white mb-1">Email Support</div>
+                        <div className="font-medium text-gray-900 dark:text-white mb-1">Message/Mail</div>
                         <a href="mailto:foodhunt101lpu@gmail.com" className="text-primary-600 hover:underline break-all">foodhunt101lpu@gmail.com</a>
                      </div>
                   </div>

@@ -1,49 +1,40 @@
 
-import { User, Vendor, Review, MealSplit, GenericResponse, MenuItem, Message } from '../types';
-import { db } from './firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  getCountFromServer,
-  writeBatch
-} from 'firebase/firestore';
+import { User, Vendor, Review, MealSplit, GenericResponse, MenuItem, Message, Conversation } from '../types';
+import { supabase } from './supabase';
 
 // --- Helper Functions ---
-const mapDoc = <T>(doc: any): T => ({ id: doc.id, ...doc.data() } as T);
+// Supabase returns { data, error }. We map this to our GenericResponse.
 
 export const api = {
   // USERS ENDPOINTS
   users: {
     getMe: async (userId: string): Promise<GenericResponse<User>> => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (userDoc.exists()) {
-          return { success: true, message: 'Fetched user.', data: mapDoc<User>(userDoc) };
-        }
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) throw error;
+        if (data) return { success: true, message: 'Fetched user.', data: data as User };
         return { success: false, message: 'User not found.' };
       } catch (error: any) {
-        return { success: false, message: error.message };
+        return { success: false, message: error.message || 'Error fetching user' };
       }
     },
     updateProfile: async (userId: string, updates: Partial<User>): Promise<GenericResponse<User>> => {
       try {
-        const userRef = doc(db, 'users', userId);
-        // Prevent updating restricted fields via this endpoint
         const { id, email, role, ...safeUpdates } = updates;
+        const { data, error } = await supabase
+          .from('users')
+          .update({ ...safeUpdates, updated_at: new Date().toISOString() })
+          .eq('id', userId)
+          .select()
+          .single();
 
-        await updateDoc(userRef, { ...safeUpdates, updated_at: new Date().toISOString() });
-        const updatedDoc = await getDoc(userRef);
-        return { success: true, message: 'Profile updated.', data: mapDoc<User>(updatedDoc) };
+        if (error) throw error;
+        return { success: true, message: 'Profile updated.', data: data as User };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -51,58 +42,50 @@ export const api = {
     getActivity: async (userId: string) => {
       try {
         // Recent Reviews
-        const reviewsQuery = query(
-          collection(db, 'reviews'),
-          where('user_id', '==', userId),
-          orderBy('created_at', 'desc'),
-          limit(3)
-        );
-        const reviewsSnap = await getDocs(reviewsQuery);
-        const reviews = reviewsSnap.docs.map(d => mapDoc<Review>(d));
+        const { data: reviews, error: reviewError } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(3);
 
-        // Recent Splits (Created or Joined)
-        // Firestore doesn't support logical OR in simple queries easily for arrays + fields.
-        // We'll fetch splits where user is creator OR user is in people_joined_ids separately or just fetch all active and filter (if small dataset).
-        // For scalability, we should have a better structure, but for now let's fetch recent splits where user is joined.
+        if (reviewError) throw reviewError;
 
-        const splitsQuery = query(
-          collection(db, 'meal_splits'),
-          where('people_joined_ids', 'array-contains', userId),
-          orderBy('created_at', 'desc'),
-          limit(5)
-        );
-        const splitsSnap = await getDocs(splitsQuery);
-        const splits = splitsSnap.docs.map(d => mapDoc<MealSplit>(d));
+        // Recent Splits (joined)
+        // 'people_joined_ids' is an array.
+        const { data: splits, error: splitError } = await supabase
+          .from('meal_splits')
+          .select('*')
+          .contains('people_joined_ids', [userId])
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (splitError) throw splitError;
 
         return {
           success: true,
           message: 'Activity fetched',
           data: {
-            recentReviews: reviews,
-            recentSplits: splits.slice(0, 3)
+            recentReviews: reviews || [],
+            recentSplits: (splits || []).slice(0, 3)
           }
         };
       } catch (error: any) {
-        console.error(error);
         return { success: false, message: error.message };
       }
     },
     search: async (queryText: string): Promise<GenericResponse<User>> => {
       try {
-        // Simple search by ID or exact College ID
-        // Firestore doesn't support full-text search natively without 3rd party (Algolia/Typesense).
-        // We will implement exact match for Email or User ID.
+        // Search by ID or Email
+        // Try ID first if it looks like a uuid (skip for now, just text search)
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .or(`id.eq.${queryText},email.eq.${queryText}`)
+          .maybeSingle();
 
-        // Check by ID
-        const userDoc = await getDoc(doc(db, 'users', queryText));
-        if (userDoc.exists()) return { success: true, message: 'User found.', data: mapDoc<User>(userDoc) };
-
-        // Check by Email
-        const q = query(collection(db, 'users'), where('email', '==', queryText));
-        const querySnap = await getDocs(q);
-        if (!querySnap.empty) {
-          return { success: true, message: 'User found.', data: mapDoc<User>(querySnap.docs[0]) };
-        }
+        if (error) throw error;
+        if (data) return { success: true, message: 'User found.', data: data as User };
 
         return { success: false, message: 'User not found.' };
       } catch (error: any) {
@@ -115,9 +98,9 @@ export const api = {
   vendors: {
     getAll: async (): Promise<GenericResponse<Vendor[]>> => {
       try {
-        const querySnap = await getDocs(collection(db, 'vendors'));
-        const vendors = querySnap.docs.map(d => mapDoc<Vendor>(d));
-        return { success: true, message: 'Fetched vendors.', data: vendors };
+        const { data, error } = await supabase.from('vendors').select('*');
+        if (error) throw error;
+        return { success: true, message: 'Fetched vendors.', data: data as Vendor[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -125,11 +108,9 @@ export const api = {
 
     getById: async (id: string): Promise<GenericResponse<Vendor>> => {
       try {
-        const docSnap = await getDoc(doc(db, 'vendors', id));
-        if (docSnap.exists()) {
-          return { success: true, message: 'Fetched vendor.', data: mapDoc<Vendor>(docSnap) };
-        }
-        return { success: false, message: 'Vendor not found.' };
+        const { data, error } = await supabase.from('vendors').select('*').eq('id', id).single();
+        if (error) throw error;
+        return { success: true, message: 'Fetched vendor.', data: data as Vendor };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -137,15 +118,16 @@ export const api = {
 
     getReviews: async (vendorId: string): Promise<GenericResponse<Review[]>> => {
       try {
-        const q = query(collection(db, 'reviews'), where('vendor_id', '==', vendorId), orderBy('created_at', 'desc'));
-        const querySnap = await getDocs(q);
+        // Fetch reviews AND user names ideally. 
+        // For now, raw fetch.
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('vendor_id', vendorId)
+          .order('created_at', { ascending: false });
 
-        // We need user names for reviews. In a real app, we'd duplicate the name in the review or fetch users.
-        // Let's assume we fetch users for now or just show 'User'.
-        // Optimization: Store user_name in review document.
-
-        const reviews = querySnap.docs.map(d => mapDoc<Review>(d));
-        return { success: true, message: 'Fetched reviews.', data: reviews };
+        if (error) throw error;
+        return { success: true, message: 'Fetched reviews.', data: data as Review[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -160,17 +142,18 @@ export const api = {
           review_text: text,
           created_at: new Date().toISOString()
         };
-        const docRef = await addDoc(collection(db, 'reviews'), newReview);
 
-        // Award 5 Loyalty Points to the user
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const currentPoints = userSnap.data().loyalty_points || 0;
-          await updateDoc(userRef, { loyalty_points: currentPoints + 5 });
+        const { data, error } = await supabase.from('reviews').insert(newReview).select().single();
+        if (error) throw error;
+
+        // Award Loyalty Points using RPC or client-side update
+        // Client side for now to match logic:
+        const { data: user } = await supabase.from('users').select('loyalty_points').eq('id', userId).single();
+        if (user) {
+          await supabase.from('users').update({ loyalty_points: (user.loyalty_points || 0) + 5 }).eq('id', userId);
         }
 
-        return { success: true, message: 'Review posted. +5 Loyalty Points!', data: { id: docRef.id, ...newReview } as Review };
+        return { success: true, message: 'Review posted. +5 Loyalty Points!', data: data as Review };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -178,10 +161,9 @@ export const api = {
 
     getMenuItems: async (vendorId: string): Promise<GenericResponse<MenuItem[]>> => {
       try {
-        const q = query(collection(db, 'menu_items'), where('vendor_id', '==', vendorId));
-        const querySnap = await getDocs(q);
-        const items = querySnap.docs.map(d => mapDoc<MenuItem>(d));
-        return { success: true, message: 'Fetched menu items.', data: items };
+        const { data, error } = await supabase.from('menu_items').select('*').eq('vendor_id', vendorId);
+        if (error) throw error;
+        return { success: true, message: 'Fetched menu items.', data: data as MenuItem[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -189,8 +171,9 @@ export const api = {
 
     updateMenuItem: async (item: MenuItem): Promise<GenericResponse<MenuItem>> => {
       try {
-        await updateDoc(doc(db, 'menu_items', item.id), item as any);
-        return { success: true, message: 'Menu item updated.', data: item };
+        const { data, error } = await supabase.from('menu_items').update(item).eq('id', item.id).select().single();
+        if (error) throw error;
+        return { success: true, message: 'Menu item updated.', data: data as MenuItem };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -198,7 +181,8 @@ export const api = {
 
     deleteReview: async (reviewId: string): Promise<GenericResponse<null>> => {
       try {
-        await deleteDoc(doc(db, 'reviews', reviewId));
+        const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+        if (error) throw error;
         return { success: true, message: 'Review deleted.' };
       } catch (error: any) {
         return { success: false, message: error.message };
@@ -210,12 +194,14 @@ export const api = {
   splits: {
     getAll: async (): Promise<GenericResponse<MealSplit[]>> => {
       try {
-        const q = query(collection(db, 'meal_splits'), where('is_closed', '==', false));
-        const querySnap = await getDocs(q);
-        const splits = querySnap.docs.map(d => mapDoc<MealSplit>(d));
-        // Sort in memory to avoid composite index requirement
-        splits.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        return { success: true, message: 'Fetched splits.', data: splits };
+        const { data, error } = await supabase
+          .from('meal_splits')
+          .select('*')
+          .eq('is_closed', false)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return { success: true, message: 'Fetched splits.', data: data as MealSplit[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -224,8 +210,8 @@ export const api = {
     create: async (splitData: any): Promise<GenericResponse<MealSplit>> => {
       try {
         // Check if user has active split
-        const userDoc = await getDoc(doc(db, 'users', splitData.creator_id));
-        if (userDoc.exists() && userDoc.data().active_split_id) {
+        const { data: user } = await supabase.from('users').select('active_split_id').eq('id', splitData.creator_id).single();
+        if (user?.active_split_id) {
           return { success: false, message: 'You already have an active split.' };
         }
 
@@ -236,13 +222,13 @@ export const api = {
           created_at: new Date().toISOString()
         };
 
-        const docRef = await addDoc(collection(db, 'meal_splits'), newSplit);
-        const splitId = docRef.id;
+        const { data: split, error } = await supabase.from('meal_splits').insert(newSplit).select().single();
+        if (error) throw error;
 
         // Update User
-        await updateDoc(doc(db, 'users', splitData.creator_id), { active_split_id: splitId });
+        await supabase.from('users').update({ active_split_id: split.id }).eq('id', splitData.creator_id);
 
-        return { success: true, message: 'Split created.', data: { id: splitId, ...newSplit } as MealSplit };
+        return { success: true, message: 'Split created.', data: split as MealSplit };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -250,31 +236,29 @@ export const api = {
 
     join: async (splitId: string, userId: string): Promise<GenericResponse<MealSplit>> => {
       try {
-        const splitRef = doc(db, 'meal_splits', splitId);
-        const splitSnap = await getDoc(splitRef);
+        const { data: split, error: fetchError } = await supabase.from('meal_splits').select('*').eq('id', splitId).single();
+        if (fetchError || !split) return { success: false, message: 'Split not found' };
 
-        if (!splitSnap.exists()) return { success: false, message: 'Split not found' };
-        const split = mapDoc<MealSplit>(splitSnap);
+        const { data: user } = await supabase.from('users').select('*').eq('id', userId).single();
 
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await getDoc(userRef);
-        const user = userSnap.data() as User;
-
-        if (user.active_split_id) return { success: false, message: 'Leave your current split first.' };
+        if (user?.active_split_id) return { success: false, message: 'Leave your current split first.' };
         if (split.people_joined_ids.includes(userId)) return { success: false, message: 'Already joined.' };
 
         const newPeople = [...split.people_joined_ids, userId];
         const isClosed = newPeople.length >= split.people_needed;
 
-        await updateDoc(splitRef, { people_joined_ids: newPeople, is_closed: isClosed });
-        if (!isClosed) {
-          await updateDoc(userRef, { active_split_id: splitId });
-        } else {
-          // If closed, do we still set active_split_id? Yes, usually.
-          await updateDoc(userRef, { active_split_id: splitId });
-        }
+        const { data: updatedSplit, error: updateError } = await supabase
+          .from('meal_splits')
+          .update({ people_joined_ids: newPeople, is_closed: isClosed })
+          .eq('id', splitId)
+          .select()
+          .single();
 
-        return { success: true, message: 'Joined split!', data: { ...split, people_joined_ids: newPeople, is_closed: isClosed } };
+        if (updateError) throw updateError;
+
+        await supabase.from('users').update({ active_split_id: splitId }).eq('id', userId);
+
+        return { success: true, message: 'Joined split!', data: updatedSplit as MealSplit };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -282,18 +266,18 @@ export const api = {
 
     leave: async (splitId: string, userId: string): Promise<GenericResponse<null>> => {
       try {
-        const splitRef = doc(db, 'meal_splits', splitId);
-        const splitSnap = await getDoc(splitRef);
-        if (!splitSnap.exists()) return { success: false, message: 'Split not found' };
+        const { data: split, error: fetchError } = await supabase.from('meal_splits').select('*').eq('id', splitId).single();
+        if (fetchError || !split) return { success: false, message: 'Split not found' };
 
-        const split = mapDoc<MealSplit>(splitSnap);
-        const newPeople = split.people_joined_ids.filter(id => id !== userId);
+        const newPeople = split.people_joined_ids.filter((id: string) => id !== userId);
+        const isClosed = newPeople.length >= split.people_needed; // Likely false
 
-        // Re-open if it was closed
-        const isClosed = newPeople.length >= split.people_needed; // Likely false now
+        await supabase
+          .from('meal_splits')
+          .update({ people_joined_ids: newPeople, is_closed: isClosed })
+          .eq('id', splitId);
 
-        await updateDoc(splitRef, { people_joined_ids: newPeople, is_closed: isClosed });
-        await updateDoc(doc(db, 'users', userId), { active_split_id: null });
+        await supabase.from('users').update({ active_split_id: null }).eq('id', userId);
 
         return { success: true, message: 'Left split successfully.' };
       } catch (error: any) {
@@ -303,9 +287,9 @@ export const api = {
 
     getById: async (splitId: string): Promise<GenericResponse<MealSplit>> => {
       try {
-        const docSnap = await getDoc(doc(db, 'meal_splits', splitId));
-        if (docSnap.exists()) return { success: true, message: 'Fetched split', data: mapDoc<MealSplit>(docSnap) };
-        return { success: false, message: 'Split not found' };
+        const { data, error } = await supabase.from('meal_splits').select('*').eq('id', splitId).single();
+        if (error) throw error;
+        return { success: true, message: 'Fetched split', data: data as MealSplit };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -313,7 +297,8 @@ export const api = {
 
     delete: async (splitId: string): Promise<GenericResponse<null>> => {
       try {
-        await deleteDoc(doc(db, 'meal_splits', splitId));
+        const { error } = await supabase.from('meal_splits').delete().eq('id', splitId);
+        if (error) throw error;
         return { success: true, message: 'Split deleted successfully.' };
       } catch (error: any) {
         return { success: false, message: error.message };
@@ -321,98 +306,132 @@ export const api = {
     }
   },
 
-  // MESSAGES ENDPOINTS
+  // MESSAGES ENDPOINTS (Refactored for Supabase)
   messages: {
-    get: async (userId: string): Promise<GenericResponse<Message[]>> => {
+    getInbox: async (userId: string): Promise<GenericResponse<Conversation[]>> => {
       try {
-        // Firestore OR queries are limited. We need messages where sender==userId OR receiver==userId.
-        // We will fetch both and merge.
-        const q1 = query(collection(db, 'messages'), where('sender_id', '==', userId));
-        const q2 = query(collection(db, 'messages'), where('receiver_id', '==', userId));
+        const { data, error } = await supabase
+          .from('conversations')
+          .select('*')
+          .contains('participants', [userId])
+          .order('updated_at', { ascending: false });
 
-        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-
-        const messages = [...snap1.docs, ...snap2.docs].map(d => mapDoc<Message>(d));
-        // Remove duplicates and sort
-        const unique = Array.from(new Map(messages.map(m => [m.id, m])).values());
-        unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-        return { success: true, message: 'Messages fetched', data: unique };
+        if (error) throw error;
+        return { success: true, message: 'Inbox fetched', data: data as Conversation[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
+
+    getChat: async (conversationId: string): Promise<GenericResponse<Message[]>> => {
+      try {
+        console.log(`[DEBUG] fetching chat for: ${conversationId}`);
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true }); // Chronological
+
+        if (error) {
+          console.error('[DEBUG] Supabase error:', error);
+          throw error;
+        }
+        console.log(`[DEBUG] fetched ${data?.length} messages`);
+        return { success: true, message: 'Chat fetched', data: data as Message[] };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+
     send: async (senderId: string, receiverId: string, content: string): Promise<GenericResponse<Message>> => {
       try {
-        // Get sender name
-        const senderDoc = await getDoc(doc(db, 'users', senderId));
-        const senderName = senderDoc.exists() ? senderDoc.data().name : 'Unknown';
+        const chatId = [senderId, receiverId].sort().join('_');
 
+        // 1. Get/Create Conversation
+        let { data: chat } = await supabase.from('conversations').select('*').eq('id', chatId).single();
+
+        const now = new Date().toISOString();
+
+        if (!chat) {
+          // Fetch names
+          const { data: sender } = await supabase.from('users').select('name, email, pfp_url').eq('id', senderId).single();
+          const { data: receiver } = await supabase.from('users').select('name, email, pfp_url').eq('id', receiverId).single();
+
+          const newConv = {
+            id: chatId,
+            participants: [senderId, receiverId],
+            participant_details: {
+              [senderId]: sender || { name: 'Unknown' },
+              [receiverId]: receiver || { name: 'Unknown' }
+            },
+            last_message: { content, sender_id: senderId, created_at: now, is_read: false },
+            unread_counts: { [senderId]: 0, [receiverId]: 1 },
+            updated_at: now
+          };
+
+          const { error: createError } = await supabase.from('conversations').insert(newConv);
+          // If concurrent create, this fails, but we can ignore or retry. Simplified here.
+        } else {
+          // Update existng
+          const unread = (chat.unread_counts?.[receiverId] || 0) + 1;
+          const updatedCounts = { ...chat.unread_counts, [receiverId]: unread };
+
+          await supabase.from('conversations').update({
+            last_message: { content, sender_id: senderId, created_at: now, is_read: false },
+            unread_counts: updatedCounts,
+            updated_at: now
+          }).eq('id', chatId);
+        }
+
+        // 2. Insert Message
         const newMessage = {
+          conversation_id: chatId,
           sender_id: senderId,
-          sender_name: senderName,
           receiver_id: receiverId,
           content,
           is_read: false,
-          created_at: new Date().toISOString()
+          created_at: now
         };
 
-        const docRef = await addDoc(collection(db, 'messages'), newMessage);
-        return { success: true, message: 'Message sent.', data: { id: docRef.id, ...newMessage } as Message };
+        const { data: msg, error: msgError } = await supabase.from('messages').insert(newMessage).select().single();
+        if (msgError) throw msgError;
+
+        return { success: true, message: 'Message sent.', data: msg as Message };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
-    markAsRead: async (msgId: string): Promise<GenericResponse<null>> => {
+
+    markAsRead: async (conversationId: string, userId: string): Promise<GenericResponse<null>> => {
       try {
-        await updateDoc(doc(db, 'messages', msgId), { is_read: true });
+        // Fetch current to merge json
+        const { data: chat } = await supabase.from('conversations').select('unread_counts').eq('id', conversationId).single();
+        if (chat) {
+          const newCounts = { ...chat.unread_counts, [userId]: 0 };
+          await supabase.from('conversations').update({ unread_counts: newCounts }).eq('id', conversationId);
+        }
+        // Also update individual messages if we wanted strict read receipts
         return { success: true, message: 'Marked as read' };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
-    deleteConversation: async (userId: string, otherId: string): Promise<GenericResponse<null>> => {
+
+    deleteConversation: async (userId: string, conversationId: string): Promise<GenericResponse<null>> => {
       try {
-        const q1 = query(collection(db, 'messages'), where('sender_id', '==', userId), where('receiver_id', '==', otherId));
-        const q2 = query(collection(db, 'messages'), where('sender_id', '==', otherId), where('receiver_id', '==', userId));
-
-        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-        const docs = [...snap1.docs, ...snap2.docs];
-
-        if (docs.length === 0) return { success: true, message: 'No messages to delete.' };
-
-        const batch = writeBatch(db);
-        docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-
+        // Cascade delete should handle messages
+        const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
+        if (error) throw error;
         return { success: true, message: 'Conversation deleted.' };
       } catch (error: any) {
-        console.error("Delete conversation error:", error);
         return { success: false, message: error.message };
       }
     },
+
     clearAll: async (userId: string): Promise<GenericResponse<null>> => {
       try {
-        const q1 = query(collection(db, 'messages'), where('sender_id', '==', userId));
-        const q2 = query(collection(db, 'messages'), where('receiver_id', '==', userId));
-
-        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-        const docs = [...snap1.docs, ...snap2.docs];
-
-        if (docs.length === 0) return { success: true, message: 'Inbox cleared.' };
-
-        const batch = writeBatch(db);
-        // Unique docs only to avoid double deletion error in batch
-        const seen = new Set();
-        docs.forEach(d => {
-          if (!seen.has(d.id)) {
-            batch.delete(d.ref);
-            seen.add(d.id);
-          }
-        });
-
-        await batch.commit();
-
+        const { error } = await supabase.from('conversations').delete().contains('participants', [userId]);
+        if (error) throw error;
         return { success: true, message: 'Inbox cleared.' };
       } catch (error: any) {
         return { success: false, message: error.message };
@@ -420,75 +439,44 @@ export const api = {
     }
   },
 
-  // ADMIN ENDPOINTS
+  // ADMIN ENDPOINTS (Stubbed for now, Supabase has simpler counts)
   admin: {
     getStats: async (): Promise<GenericResponse<any>> => {
-      try {
-        const [usersSnap, vendorsSnap, reviewsSnap] = await Promise.all([
-          getCountFromServer(collection(db, 'users')),
-          getCountFromServer(collection(db, 'vendors')),
-          getCountFromServer(collection(db, 'reviews'))
-        ]);
-
-        return {
-          success: true,
-          message: 'Stats fetched',
-          data: {
-            totalUsers: usersSnap.data().count,
-            totalVendors: vendorsSnap.data().count,
-            totalReviews: reviewsSnap.data().count
-          }
-        };
-      } catch (error: any) {
-        return { success: false, message: error.message };
-      }
+      const { count: u } = await supabase.from('users').select('*', { count: 'exact', head: true });
+      const { count: v } = await supabase.from('vendors').select('*', { count: 'exact', head: true });
+      const { count: r } = await supabase.from('reviews').select('*', { count: 'exact', head: true });
+      return { success: true, message: 'Stats', data: { totalUsers: u, totalVendors: v, totalReviews: r } };
     },
     users: {
-      getAll: async (): Promise<GenericResponse<User[]>> => {
-        try {
-          const snap = await getDocs(collection(db, 'users'));
-          return { success: true, message: 'Users fetched', data: snap.docs.map(d => mapDoc<User>(d)) };
-        } catch (error: any) { return { success: false, message: error.message }; }
+      getAll: async () => {
+        const { data } = await supabase.from('users').select('*');
+        return { success: true, message: 'Users', data: data as User[] };
       },
-      toggleStatus: async (id: string): Promise<GenericResponse<User>> => {
-        try {
-          const ref = doc(db, 'users', id);
-          const snap = await getDoc(ref);
-          if (!snap.exists()) return { success: false, message: 'User not found' };
-          const newVal = !snap.data().is_disabled;
-          await updateDoc(ref, { is_disabled: newVal });
-          return { success: true, message: `User ${newVal ? 'disabled' : 'enabled'}`, data: { ...mapDoc<User>(snap), is_disabled: newVal } };
-        } catch (error: any) { return { success: false, message: error.message }; }
+      toggleStatus: async (id: string) => {
+        // Fetch first
+        const { data } = await supabase.from('users').select('is_disabled').eq('id', id).single();
+        if (data) {
+          const { data: updated } = await supabase.from('users').update({ is_disabled: !data.is_disabled }).eq('id', id).select().single();
+          return { success: true, message: 'Toggled', data: updated as User };
+        }
+        return { success: false, message: 'User not found' };
       },
-      create: async (userData: any): Promise<GenericResponse<User>> => {
-        return { success: false, message: "Admin creation of users is not supported in this client-only version. Please use the Sign Up page." };
-      }
+      create: async () => ({ success: false, message: "Use signup" })
     },
     vendors: {
-      create: async (data: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>): Promise<GenericResponse<Vendor>> => {
-        try {
-          const newVendor = {
-            ...data,
-            created_at: new Date().toISOString(),
-            is_active: true,
-            rating_avg: 0,
-            rating_count: 0
-          };
-          const ref = await addDoc(collection(db, 'vendors'), newVendor);
-          return { success: true, message: 'Vendor created.', data: { id: ref.id, ...newVendor } as Vendor };
-        } catch (error: any) { return { success: false, message: error.message }; }
+      create: async (data: any) => {
+        const { data: v, error } = await supabase.from('vendors').insert(data).select().single();
+        if (error) return { success: false, message: error.message };
+        return { success: true, message: 'Created', data: v };
       },
-      update: async (id: string, data: Partial<Vendor>): Promise<GenericResponse<Vendor>> => {
-        try {
-          await updateDoc(doc(db, 'vendors', id), { ...data, updated_at: new Date().toISOString() });
-          return { success: true, message: 'Vendor updated.', data: { id, ...data } as Vendor };
-        } catch (error: any) { return { success: false, message: error.message }; }
+      update: async (id: string, data: any) => {
+        const { data: v, error } = await supabase.from('vendors').update(data).eq('id', id).select().single();
+        if (error) return { success: false, message: error.message };
+        return { success: true, message: 'Updated', data: v };
       },
-      delete: async (id: string): Promise<GenericResponse<null>> => {
-        try {
-          await deleteDoc(doc(db, 'vendors', id));
-          return { success: true, message: 'Vendor deleted.' };
-        } catch (error: any) { return { success: false, message: error.message }; }
+      delete: async (id: string) => {
+        await supabase.from('vendors').delete().eq('id', id);
+        return { success: true, message: 'Deleted' };
       }
     }
   }
