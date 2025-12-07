@@ -99,22 +99,60 @@ create table public.messages (
 -- In production, you must use RLS (Row Level Security)
 
 alter table public.users enable row level security;
-create policy "Public access" on public.users for all using (true);
+-- Users can see their own profile and others (needed for searching/viewing profiles)
+create policy "Public profiles are viewable by everyone" on public.users for select using (true);
+-- Users can update only their own profile
+create policy "Users can update their own profile" on public.users for update using (auth.uid()::text = id);
+-- Users can insert their own profile (on signup)
+create policy "Users can insert their own profile" on public.users for insert with check (auth.uid()::text = id);
+
 
 alter table public.vendors enable row level security;
-create policy "Public access" on public.vendors for all using (true);
+-- Vendors are viewable by everyone
+create policy "Vendors are viewable by everyone" on public.vendors for select using (true);
+-- Only admins/service role can insert/update vendors (simplification: assume app logic handles admin check or manual DB management for now)
+-- ideally: create policy "Admins can update vendors" ... 
+
 
 alter table public.reviews enable row level security;
-create policy "Public access" on public.reviews for all using (true);
+-- Reviews are viewable by everyone
+create policy "Reviews are viewable by everyone" on public.reviews for select using (true);
+-- Authenticated users can create reviews
+create policy "Authenticated users can create reviews" on public.reviews for insert with check (auth.role() = 'authenticated');
+-- Users can delete their own reviews (or admins)
+create policy "Users can delete their own reviews" on public.reviews for delete using (auth.uid()::text = user_id);
+
 
 alter table public.menu_items enable row level security;
-create policy "Public access" on public.menu_items for all using (true);
+create policy "Menu items are viewable by everyone" on public.menu_items for select using (true);
+
 
 alter table public.meal_splits enable row level security;
-create policy "Public access" on public.meal_splits for all using (true);
+-- Authenticated users can view splits
+create policy "Authenticated users can view splits" on public.meal_splits for select using (auth.role() = 'authenticated');
+-- Authenticated users can create splits
+create policy "Authenticated users can create splits" on public.meal_splits for insert with check (auth.role() = 'authenticated');
+-- Users can update splits they are part of (e.g. joining) or created
+-- checking connection to an array column is tricky in policy without advanced operators, 
+-- but for now we allow update if authenticated (application logic handles specific rules).
+create policy "Authenticated users can update splits" on public.meal_splits for update using (auth.role() = 'authenticated');
+create policy "Creators can delete splits" on public.meal_splits for delete using (auth.uid()::text = creator_id);
+
 
 alter table public.conversations enable row level security;
-create policy "Public access" on public.conversations for all using (true);
+-- Users can view conversations they are a participant of
+create policy "Users can view their conversations" on public.conversations for select using (auth.uid()::text = any(participants));
+-- Users can insert conversations (start chat)
+create policy "Users can create conversations" on public.conversations for insert with check (auth.role() = 'authenticated');
+-- Users can update conversations (e.g. mark read, update last_message)
+create policy "Users can update their conversations" on public.conversations for update using (auth.uid()::text = any(participants));
+
 
 alter table public.messages enable row level security;
-create policy "Public access" on public.messages for all using (true);
+-- Users can view messages in conversations they belong to
+-- (This requires a join or a check. For simplicity, we ensure sender/receiver matching as per table structure)
+create policy "Users can view their messages" on public.messages for select using (
+  auth.uid()::text = sender_id or auth.uid()::text = receiver_id
+);
+-- Users can send messages
+create policy "Users can send messages" on public.messages for insert with check (auth.uid()::text = sender_id);

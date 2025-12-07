@@ -59,6 +59,8 @@ const CompleteProfile: React.FC = () => {
         setLoading(false);
 
         if (res.success) {
+            // Navigation handled by App.tsx redirect logic (needsCompletion becoming false)
+            // or we can force it
             navigate('/');
         } else {
             setError(res.message);

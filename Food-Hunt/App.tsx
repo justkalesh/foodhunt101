@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import Chatbot from './components/Chatbot';
@@ -24,7 +24,20 @@ import { useLocation } from 'react-router-dom';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
-  const showChatbot = location.pathname !== '/inbox';
+  const { needsCompletion, isLoading } = useAuth();
+  const showChatbot = location.pathname !== '/inbox' && location.pathname !== '/complete-profile';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (needsCompletion && location.pathname !== '/complete-profile') {
+    return <Navigate to="/complete-profile" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 dark:bg-none dark:bg-dark-900 transition-colors duration-200">

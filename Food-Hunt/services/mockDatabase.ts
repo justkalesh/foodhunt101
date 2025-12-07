@@ -14,7 +14,7 @@ export const api = {
           .from('users')
           .select('*')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         if (data) return { success: true, message: 'Fetched user.', data: data as User };
@@ -108,7 +108,7 @@ export const api = {
 
     getById: async (id: string): Promise<GenericResponse<Vendor>> => {
       try {
-        const { data, error } = await supabase.from('vendors').select('*').eq('id', id).single();
+        const { data, error } = await supabase.from('vendors').select('*').eq('id', id).maybeSingle();
         if (error) throw error;
         return { success: true, message: 'Fetched vendor.', data: data as Vendor };
       } catch (error: any) {
@@ -236,7 +236,7 @@ export const api = {
 
     join: async (splitId: string, userId: string): Promise<GenericResponse<MealSplit>> => {
       try {
-        const { data: split, error: fetchError } = await supabase.from('meal_splits').select('*').eq('id', splitId).single();
+        const { data: split, error: fetchError } = await supabase.from('meal_splits').select('*').eq('id', splitId).maybeSingle();
         if (fetchError || !split) return { success: false, message: 'Split not found' };
 
         const { data: user } = await supabase.from('users').select('*').eq('id', userId).single();
@@ -287,7 +287,7 @@ export const api = {
 
     getById: async (splitId: string): Promise<GenericResponse<MealSplit>> => {
       try {
-        const { data, error } = await supabase.from('meal_splits').select('*').eq('id', splitId).single();
+        const { data, error } = await supabase.from('meal_splits').select('*').eq('id', splitId).maybeSingle();
         if (error) throw error;
         return { success: true, message: 'Fetched split', data: data as MealSplit };
       } catch (error: any) {

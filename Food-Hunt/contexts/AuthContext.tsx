@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  needsCompletion: boolean; // New flag
   login: (email: string, pass: string) => Promise<AuthResponse>;
   signup: (data: any) => Promise<AuthResponse>;
   signInWithGoogle: () => Promise<any>;
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsCompletion, setNeedsCompletion] = useState(false);
 
   useEffect(() => {
     // Check initial session
@@ -29,15 +31,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile(session.user.id);
       } else {
         setUser(null);
+        setNeedsCompletion(false);
         setIsLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth State Change:", event, session?.user?.id);
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
         setUser(null);
+        setNeedsCompletion(false);
         setIsLoading(false);
       }
     });
@@ -49,9 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await api.users.getMe(userId);
     if (res.success && res.data) {
       setUser(res.data);
+      setNeedsCompletion(false);
     } else {
-      console.error("Profile fetch failed:", res.message);
-      // maybe sign out if no profile?
+      console.log("User authenticated but profile not found. Redirecting to completion.");
+      // User is authenticated but has no profile -> Needs completion
+      setNeedsCompletion(true);
+      setUser(null);
     }
     setIsLoading(false);
   };
@@ -136,20 +144,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     // Supabase Google Auth requires redirection usually.
     // For this dev setup, we might stick to Email/Pass or use signInWithOAuth
-    const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
     if (error) return { success: false, message: error.message };
     return { success: true, message: 'Redirecting...' };
   };
 
-  const completeGoogleSignup = async (data: any, firebaseUser: any) => {
-    // This flow effectively changes for Supabase as OAuth handles user creation differently.
-    // We will assume for now this is legacy or needs redesign. 
-    return { success: false, message: "Use Email Signup for this beta." };
+  const completeGoogleSignup = async (data: any, supabaseUser: any) => {
+    setIsLoading(true);
+    try {
+      const newUser: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        name: data.name,
+        semester: data.semester,
+        role: UserRole.STUDENT,
+        is_disabled: false,
+        created_at: new Date().toISOString(),
+        loyalty_points: 0,
+        pfp_url: supabaseUser.user_metadata?.avatar_url || ''
+      };
+
+      const { error: profileError } = await supabase.from('users').insert(newUser);
+      if (profileError) throw profileError;
+
+      // Welcome Message
+      try {
+        await api.messages.send('foodhunt101lpu@gmail.com', newUser.id, `Welcome to Food Hunt!`);
+      } catch (e) {
+        console.log("Welcome msg check failed or ignored", e);
+      }
+
+      setUser(newUser);
+      setNeedsCompletion(false);
+      return { success: true, message: 'Profile completed.', user: newUser };
+
+    } catch (error: any) {
+      console.error("Completion error:", error);
+      return { success: false, message: error.message };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setNeedsCompletion(false);
   };
 
   const updateUser = (updatedUser: User) => {
@@ -157,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, needsCompletion, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

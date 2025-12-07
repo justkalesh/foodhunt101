@@ -42,7 +42,7 @@ const Navbar: React.FC = () => {
               <div className="bg-white p-1 rounded-lg shadow-sm">
                 <img src="/logo.png" alt="Food Hunt Logo" className="h-10 w-10 object-contain" />
               </div>
-              <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">FOOD-HUNT</span>
+              <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">Food-Hunt101</span>
             </Link>
           </div>
 
@@ -81,7 +81,7 @@ const Navbar: React.FC = () => {
               </div>
             ) : (
               <div className="flex gap-2">
-                <Link to="/login" className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">Log In</Link>
+                <Link to="/login" className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">Sign In</Link>
                 <Link to="/register" className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md shadow-sm">Sign Up</Link>
               </div>
             )}
@@ -114,7 +114,7 @@ const Navbar: React.FC = () => {
             )}
             {!user && (
               <>
-                <Link to="/login" className="block px-3 py-2 text-primary-600">Log In</Link>
+                <Link to="/login" className="block px-3 py-2 text-primary-600">Sign In</Link>
                 <Link to="/register" className="block px-3 py-2 text-primary-600">Register</Link>
               </>
             )}
