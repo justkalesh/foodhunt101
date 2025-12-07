@@ -80,6 +80,15 @@ const VendorList: React.FC = () => {
       res.sort((a, b) => b.lowest_item_price - a.lowest_item_price);
     } else if (sortBy === 'cheapest_asc') {
       res.sort((a, b) => a.lowest_item_price - b.lowest_item_price);
+    } else if (sortBy === 'recommended_high') {
+      res.sort((a, b) => (b.recommended_item_price || 0) - (a.recommended_item_price || 0));
+    } else if (sortBy === 'recommended_low') {
+      // Prioritize those THAT HAVE a price, then sort ASC
+      res.sort((a, b) => {
+        if (!a.recommended_item_price) return 1;
+        if (!b.recommended_item_price) return -1;
+        return a.recommended_item_price - b.recommended_item_price;
+      });
     } else {
       // DEFAULT SORT: Featured first, then by Sort Order
       res.sort((a, b) => {
@@ -217,6 +226,8 @@ const VendorList: React.FC = () => {
                     { label: 'Avg Price: High to Low', value: 'avg_desc' },
                     { label: 'Cheapest Item: High to Low', value: 'cheapest_desc' },
                     { label: 'Cheapest Item: Low to High', value: 'cheapest_asc' },
+                    { label: 'Recommended: High to Low', value: 'recommended_high' },
+                    { label: 'Recommended: Low to High', value: 'recommended_low' },
                   ].map((option) => (
                     <label key={option.value} className="flex items-center gap-3 p-3 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-dark-800 cursor-pointer transition-colors">
                       <input
