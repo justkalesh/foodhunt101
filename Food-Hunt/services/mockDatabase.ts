@@ -98,7 +98,11 @@ export const api = {
   vendors: {
     getAll: async (): Promise<GenericResponse<Vendor[]>> => {
       try {
-        const { data, error } = await supabase.from('vendors').select('*');
+        const { data, error } = await supabase
+          .from('vendors')
+          .select('*')
+          .order('is_featured', { ascending: false })
+          .order('sort_order', { ascending: true });
         if (error) throw error;
         return { success: true, message: 'Fetched vendors.', data: data as Vendor[] };
       } catch (error: any) {

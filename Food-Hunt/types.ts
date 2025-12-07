@@ -38,6 +38,11 @@ export interface Vendor {
   avg_price_per_meal: number;
   popularity_score: number;
   is_active: boolean;
+  // New Admin Features
+  sort_order?: number;
+  recommended_item_name?: string;
+  recommended_item_price?: number;
+  is_featured?: boolean;
   created_at: string;
   updated_at?: string;
   // Computed fields for UI

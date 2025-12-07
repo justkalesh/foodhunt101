@@ -62,7 +62,8 @@ const AdminVendors: React.FC = () => {
       logo_url: 'https://picsum.photos/200',
       menu_image_urls: ['https://picsum.photos/800/600'],
       contact_number: '1234567890',
-      lowest_item_price: 5, avg_price_per_meal: 10, popularity_score: 80, is_active: true
+      lowest_item_price: 5, avg_price_per_meal: 10, popularity_score: 80, is_active: true,
+      sort_order: 999, is_featured: false, recommended_item_name: '', recommended_item_price: 0
     });
     setIsEditing(false);
     setIsModalOpen(true);
@@ -89,9 +90,12 @@ const AdminVendors: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    // Check if it's a checkbox
+    const checked = (e.target as HTMLInputElement).checked;
+
     setCurrentVendor(prev => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) : value
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
     }));
   };
 
@@ -136,8 +140,12 @@ const AdminVendors: React.FC = () => {
                           <img className="h-10 w-10 rounded-full object-cover" src={vendor.menu_image_urls?.[0] || vendor.logo_url} alt="" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{vendor.name}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                            {vendor.name}
+                            {vendor.is_featured && <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">⭐</span>}
+                          </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{vendor.location}</div>
+                          <div className="text-xs text-gray-400">Order: {vendor.sort_order}</div>
                         </div>
                       </div>
                     </td>
@@ -185,6 +193,16 @@ const AdminVendors: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor Name</label>
                   <input name="name" type="text" required value={currentVendor.name} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
                 </div>
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
+                  <input name="sort_order" type="number" value={currentVendor.sort_order} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div className="md:col-span-1 flex items-end pb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input name="is_featured" type="checkbox" checked={currentVendor.is_featured || false} onChange={handleChange} className="w-5 h-5 text-primary-600 rounded" />
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">Featured Vendor</span>
+                  </label>
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                   <textarea name="description" rows={3} value={currentVendor.description} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
@@ -220,6 +238,15 @@ const AdminVendors: React.FC = () => {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contact Number</label>
                   <input name="contact_number" type="text" value={currentVendor.contact_number || ''} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
+                </div>
+
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recommended Item Name</label>
+                  <input name="recommended_item_name" type="text" value={currentVendor.recommended_item_name || ''} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recommended Item Price ($)</label>
+                  <input name="recommended_item_price" type="number" value={currentVendor.recommended_item_price || ''} onChange={handleChange} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo URL</label>
@@ -282,33 +309,35 @@ const AdminVendors: React.FC = () => {
         )}
 
         {/* Delete Confirmation Modal */}
-        {deleteId && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border dark:border-gray-700">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle size={32} />
-              </div>
-              <h3 className="text-xl font-bold dark:text-white mb-2">Delete Vendor?</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Are you sure you want to delete this vendor? This action cannot be undone.
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setDeleteId(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={executeDelete}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
-                >
-                  Delete
-                </button>
+        {
+          deleteId && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border dark:border-gray-700">
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle size={32} />
+                </div>
+                <h3 className="text-xl font-bold dark:text-white mb-2">Delete Vendor?</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                  Are you sure you want to delete this vendor? This action cannot be undone.
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setDeleteId(null)}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={executeDelete}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
       </div>
     </div>

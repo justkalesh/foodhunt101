@@ -80,6 +80,14 @@ const VendorList: React.FC = () => {
       res.sort((a, b) => b.lowest_item_price - a.lowest_item_price);
     } else if (sortBy === 'cheapest_asc') {
       res.sort((a, b) => a.lowest_item_price - b.lowest_item_price);
+    } else {
+      // DEFAULT SORT: Featured first, then by Sort Order
+      res.sort((a, b) => {
+        if (a.is_featured === b.is_featured) {
+          return (a.sort_order || 999) - (b.sort_order || 999);
+        }
+        return a.is_featured ? -1 : 1;
+      });
     }
 
     setFiltered(res);
@@ -117,8 +125,15 @@ const VendorList: React.FC = () => {
             <div className="h-48 overflow-hidden relative">
               <img src={vendor.logo_url || vendor.menu_image_urls?.[0]} alt={vendor.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 
-              <div className="absolute top-2 right-2 bg-white dark:bg-dark-900 px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1 dark:text-white">
-                <Star size={12} className="text-yellow-400 fill-current" /> {vendor.rating_avg || 'New'}
+              <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                {vendor.is_featured && (
+                  <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1">
+                    <Star size={12} className="fill-current" /> Featured
+                  </span>
+                )}
+                <div className="bg-white dark:bg-dark-900 px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1 dark:text-white">
+                  <Star size={12} className="text-yellow-400 fill-current" /> {vendor.rating_avg || 'New'}
+                </div>
               </div>
 
               {vendor.rush_level === 'high' && (
@@ -129,9 +144,17 @@ const VendorList: React.FC = () => {
             </div>
 
             <div className="p-5">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 truncate pr-2">{vendor.name}</h3>
-                <div className="flex flex-col items-end gap-1">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col gap-1 flex-1 pr-2 min-w-0">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 truncate">{vendor.name}</h3>
+                  {vendor.recommended_item_name && (
+                    <div className="text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded inline-block border border-purple-100 dark:border-purple-800 self-start truncate max-w-full">
+                      Ref: {vendor.recommended_item_name} {vendor.recommended_item_price ? `(₹${vendor.recommended_item_price})` : ''}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap">
                     Min ₹{vendor.lowest_item_price}
                   </span>
