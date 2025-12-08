@@ -32,7 +32,6 @@ messaging.onBackgroundMessage(function (payload) {
         icon: '/logo.png'
     };
 
-    // If the payload has a 'notification' property, the SDK handles it automatically.
-    // Uncommenting the below line will verify reception but might cause duplicates.
-    // self.registration.showNotification(notificationTitle, notificationOptions);
+    self.registration.showNotification(notificationTitle,
+        notificationOptions);
 });
