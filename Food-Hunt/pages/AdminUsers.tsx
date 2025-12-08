@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
 import { User, UserRole } from '../types';
-import { ChevronLeft, Lock, Unlock, Plus, MessageSquare, X, Bell } from 'lucide-react';
+import { ChevronLeft, Lock, Unlock, Plus, MessageSquare, X } from 'lucide-react';
 
 const AdminUsers: React.FC = () => {
   const { user } = useAuth();
@@ -15,11 +15,6 @@ const AdminUsers: React.FC = () => {
   // Add User Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', name: '', semester: '', password: '', role: UserRole.STUDENT });
-
-  // Push Notification Modal
-  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
-  const [pushTarget, setPushTarget] = useState<User | null>(null);
-  const [pushData, setPushData] = useState({ title: '', body: '' });
 
   useEffect(() => {
     if (user && user.role !== UserRole.ADMIN) {
@@ -46,6 +41,7 @@ const AdminUsers: React.FC = () => {
     }
     await api.admin.users.toggleStatus(targetUserId);
     fetchUsers();
+    fetchUsers();
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -64,38 +60,6 @@ const AdminUsers: React.FC = () => {
     navigate(`/inbox?userId=${u.id}&userName=${encodeURIComponent(u.name)}&userEmail=${encodeURIComponent(u.email)}`);
   };
 
-  const openPushModal = (u: User) => {
-    setPushTarget(u);
-    setPushData({ title: 'Announcement', body: '' });
-    setIsPushModalOpen(true);
-  };
-
-  const handleSendPush = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pushTarget) return;
-
-    try {
-      const res = await fetch('/api/send-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: pushTarget.id,
-          title: pushData.title,
-          body: pushData.body
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert('Push Notification Sent!');
-        setIsPushModalOpen(false);
-      } else {
-        alert('Error: ' + data.error);
-      }
-    } catch (err: any) {
-      alert('Failed to send: ' + err.message);
-    }
-  };
-
   if (loading) return <div className="p-10 text-center dark:text-white">Loading Users...</div>;
 
   return (
@@ -108,20 +72,12 @@ const AdminUsers: React.FC = () => {
 
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold dark:text-white">Manage Users</h1>
-            <div className="flex gap-2">
-              <button
-                onClick={() => openPushModal({ id: 'ALL', name: 'ALL USERS', email: '', role: UserRole.STUDENT, semester: '', loyalty_points: 0, is_disabled: false, created_at: '' })}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm"
-              >
-                <Bell size={20} /> Broadcast
-              </button>
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm"
-              >
-                <Plus size={20} /> Add User
-              </button>
-            </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm"
+            >
+              <Plus size={20} /> Add User
+            </button>
           </div>
         </div>
 
@@ -175,12 +131,6 @@ const AdminUsers: React.FC = () => {
                       >
                         <MessageSquare size={14} /> Msg
                       </button>
-                      <button
-                        onClick={() => openPushModal(u)}
-                        className="ml-2 inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
-                      >
-                        <Bell size={14} /> Push
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -227,33 +177,6 @@ const AdminUsers: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Push Notification Modal */}
-        {isPushModalOpen && pushTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-full max-w-md">
-              <div className="p-6 border-b dark:border-gray-700 flex justify-between items-center">
-                <h2 className="text-xl font-bold dark:text-white">Send Push Notification</h2>
-                <button onClick={() => setIsPushModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400"><X size={24} /></button>
-              </div>
-              <form onSubmit={handleSendPush} className="p-6 space-y-4">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">To: <span className="font-bold text-gray-900 dark:text-white">{pushTarget.name}</span></p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                  <input required value={pushData.title} onChange={e => setPushData({ ...pushData, title: e.target.value })} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message Body</label>
-                  <textarea required value={pushData.body} onChange={e => setPushData({ ...pushData, body: e.target.value })} className="w-full p-2 border rounded dark:bg-dark-900 dark:border-gray-600 dark:text-white" rows={4} />
-                </div>
-                <button type="submit" className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700">Send Notification</button>
-              </form>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );

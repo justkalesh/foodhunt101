@@ -16,7 +16,6 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminVendors from './pages/AdminVendors';
 import AdminUsers from './pages/AdminUsers';
-import { usePushNotifications } from './hooks/usePushNotifications';
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -26,7 +25,6 @@ import { useLocation } from 'react-router-dom';
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { needsCompletion, isLoading } = useAuth();
-  usePushNotifications(); // Initialize notifications
   const showChatbot = location.pathname !== '/inbox' && location.pathname !== '/complete-profile';
 
   if (isLoading) {

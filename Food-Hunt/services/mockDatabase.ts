@@ -721,22 +721,6 @@ export const api = {
         const { data: msg, error: msgError } = await supabase.from('messages').insert(newMessage).select().single();
         if (msgError) throw msgError;
 
-        // --- PUSH NOTIFICATION TRIGGER ---
-        try {
-          await fetch('/api/send-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: receiverId,
-              title: 'New Message',
-              body: `You received a message: ${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`
-            })
-          });
-        } catch (err) {
-          console.error('Failed to send push notification', err);
-        }
-        // ---------------------------------
-
         return { success: true, message: 'Message sent.', data: msg as Message };
       } catch (error: any) {
         return { success: false, message: error.message };
@@ -802,7 +786,7 @@ export const api = {
         }
         return { success: false, message: 'User not found' };
       },
-      create: async (data: any) => ({ success: false, message: "Use signup page (Admin creation not implemented)" })
+      create: async () => ({ success: false, message: "Use signup" })
     },
     vendors: {
       create: async (data: any) => {

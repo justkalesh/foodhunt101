@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, initializeFirestore } from "firebase/firestore";
-import { getMessaging } from "firebase/messaging";
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -19,7 +18,6 @@ const app = initializeApp(firebaseConfig);
 // Initialize Services
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export const messaging = getMessaging(app);
 export const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
 });

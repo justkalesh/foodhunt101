@@ -130,6 +130,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("Welcome msg check failed or ignored", e);
       }
 
+      // Notify Admin
+      try {
+        // Assuming 'admin' ID is known or we just send to a specific email user if we knew their ID. 
+        // For now, we'll try to look up the admin or just log it.
+        // Ideally we would send to a dedicated admin user.
+        // Let's assume we want to notify "foodhunt101lpu@gmail.com" if that user exists.
+        // But we don't have their ID handy. 
+        // We will search for them or just skip if not critical. 
+        // "When someone joins your list" -> Notify Admin. 
+        // Let's try to notify the admin account if we can find it.
+        // For now, let's just log or try a hardcoded ID if we had one.
+        // Since we don't know the Admin ID, we will skip or maybe send to a 'topic' if we used topics, but FCM topics would be easier.
+        // However, we implemented direct messaging.
+        // Let's try to resolve the admin email to an ID.
+        const res = await api.users.search('foodhunt101lpu@gmail.com');
+        if (res.success && res.data) {
+          await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: res.data.id,
+              title: 'New Member Joined!',
+              body: `${newUser.name} just joined the Food Hunt!`
+            })
+          });
+        }
+      } catch (e) {
+        console.log("Admin notify failed", e);
+      }
+
       setUser(newUser);
       return { success: true, message: 'Signup successful.', token: authData.session?.access_token, user: newUser };
 
