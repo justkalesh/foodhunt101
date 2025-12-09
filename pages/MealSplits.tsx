@@ -229,8 +229,11 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
   );
 };
 
+import { usePushNotifications } from '../hooks/usePushNotifications';
+
 const MealSplits: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();
   const [splits, setSplits] = useState<MealSplit[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -353,6 +356,24 @@ const MealSplits: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 relative">
+      {/* Notification Banner */}
+      {permissionStatus !== 'granted' && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 p-4 rounded-xl flex items-center justify-between animate-fade-in shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 dark:bg-blue-800 p-2 rounded-full">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            </div>
+            <p className="font-medium text-sm">Turn on notifications to get notified about meal split updates instantly.</p>
+          </div>
+          <button
+            onClick={requestPermission}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+          >
+            Turn On
+          </button>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
         <div className="space-y-2">

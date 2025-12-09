@@ -91,18 +91,14 @@ const AdminVendors: React.FC = () => {
   };
 
   const handleToggleRecommended = async (item: MenuItem) => {
-    // If already true, we can't 'unset' it via logic easily unless we decide no recommended item. 
-    // Usually toggle means On/Off. Let's allow turning it off too? 
-    // Logic in mock database sets it to true. If we want to unset, we need another call or updateMenuItem.
-    // For now, assume we just want to mark 'This is the one'.
-    if (item.is_recommended) return; // Already recommended
-
+    // Logic inside mock database now handles toggling (if on -> off, if off -> on + clear others)
     const res = await api.vendors.setRecommendedItem(item.vendor_id, item.id);
     if (res.success) {
-      setMenuItems(menuItems.map(i => ({
-        ...i,
-        is_recommended: i.id === item.id
-      })));
+      setMenuItems(menuItems.map(i => {
+        if (i.id === item.id) return { ...i, is_recommended: !i.is_recommended }; // Toggle clicked one
+        if (!item.is_recommended) return { ...i, is_recommended: false }; // If we turned it ON, others go OFF
+        return i; // If we turned it OFF, others likely stay same (which is false)
+      }));
     } else {
       alert(res.message);
     }

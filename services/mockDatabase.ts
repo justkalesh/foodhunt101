@@ -222,11 +222,17 @@ export const api = {
 
     setRecommendedItem: async (vendorId: string, itemId: string): Promise<GenericResponse<null>> => {
       try {
-        // Reset all for this vendor
-        await supabase.from('menu_items').update({ is_recommended: false }).eq('vendor_id', vendorId);
+        // Check current status
+        const { data: current } = await supabase.from('menu_items').select('is_recommended').eq('id', itemId).single();
 
-        // Set new one
-        await supabase.from('menu_items').update({ is_recommended: true }).eq('id', itemId);
+        if (current?.is_recommended) {
+          // Currently true, so toggle to OFF
+          await supabase.from('menu_items').update({ is_recommended: false }).eq('id', itemId);
+        } else {
+          // Currently false, so toggle ON (and clear others)
+          await supabase.from('menu_items').update({ is_recommended: false }).eq('vendor_id', vendorId);
+          await supabase.from('menu_items').update({ is_recommended: true }).eq('id', itemId);
+        }
 
         await recalculateVendorStats(vendorId);
         return { success: true, message: 'Recommended item updated.' };

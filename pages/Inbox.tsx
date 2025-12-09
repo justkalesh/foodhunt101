@@ -8,8 +8,11 @@ import ConfirmationModal from '../components/ConfirmationModal';
 
 
 
+import { usePushNotifications } from '../hooks/usePushNotifications';
+
 const Inbox: React.FC = () => {
     const { user } = useAuth();
+    const { permissionStatus, requestPermission } = usePushNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -302,6 +305,18 @@ const Inbox: React.FC = () => {
         <div className="flex h-[calc(100vh-64px)] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden">
             {/* Sidebar / Chat List */}
             <div className={`${activeChatId ? 'hidden md:flex' : 'flex'} w-full md:w-[400px] flex-col border-r border-gray-200 dark:border-gray-800 bg-gradient-to-b from-white to-orange-50/30 dark:bg-none dark:bg-gray-900`}>
+                {/* Notification Banner */}
+                {permissionStatus !== 'granted' && (
+                    <div className="bg-primary-600 text-white p-3 text-xs flex justify-between items-center">
+                        <span>Turn on notifications to get notified about new messages.</span>
+                        <button
+                            onClick={requestPermission}
+                            className="bg-white text-primary-600 px-3 py-1 rounded-full font-bold hover:bg-gray-100 transition-colors"
+                        >
+                            Enable
+                        </button>
+                    </div>
+                )}
                 {/* Header */}
                 <div className="p-4 bg-gradient-to-r from-gray-50 to-orange-50/30 dark:bg-none dark:bg-gray-800 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 relative h-[72px]">
                     {isSelectionMode ? (
