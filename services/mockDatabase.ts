@@ -87,6 +87,22 @@ export const api = {
 
         if (reviewError) throw reviewError;
 
+        // Fetch vendor names for reviews
+        const reviewData = reviews || [];
+        if (reviewData.length > 0) {
+          const { data: vendors } = await supabase
+            .from('vendors')
+            .select('id, name')
+            .in('id', reviewData.map((r: any) => r.vendor_id));
+
+          if (vendors) {
+            const vMap = vendors.reduce((acc: any, v: any) => ({ ...acc, [v.id]: v.name }), {});
+            reviewData.forEach((r: any) => {
+              r.vendor_name = vMap[r.vendor_id] || 'Unknown Vendor';
+            });
+          }
+        }
+
         // Recent Splits (joined)
         // 'people_joined_ids' is an array.
         const { data: splits, error: splitError } = await supabase
@@ -102,7 +118,7 @@ export const api = {
           success: true,
           message: 'Activity fetched',
           data: {
-            recentReviews: reviews || [],
+            recentReviews: reviewData,
             recentSplits: (splits || []).slice(0, 3)
           }
         };
@@ -358,11 +374,6 @@ export const api = {
         }
 
         // 4. Send Automated Message to Creator
-        // We use the existing sendMessage logic but include request_id
-        // Manually constructing it here to avoid circular dependencies or modifying the 'send' signature too much yet
-        // Ideally refactor 'send' to take options. For now, let's call 'send' and then update it? 
-        // Or better, just insert it here directly for atomicity/control.
-
         const splitTimeDate = new Date(split.split_time || new Date());
         const formattedTime = splitTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const formattedDate = splitTimeDate.toLocaleDateString();
@@ -370,14 +381,8 @@ export const api = {
         const content = `Hii, I'd like to join your split of ${split.dish_name} from ${split.vendor_name} at ${formattedDate} ${formattedTime}.`;
         const chatId = [userId, split.creator_id].sort().join('_');
 
-        // Ensure conversation exists (Reuse logic conceptually)
-        // For simplicity, we assume generic 'messages.send' works, but we want to attach `request_id`.
-        // Let's modify 'messages.send' or just do a raw insert here for the special system message.
-
-        // Let's just use raw insert to attach request_id easily
         const { data: existingChat } = await supabase.from('conversations').select('id').eq('id', chatId).maybeSingle();
         if (!existingChat) {
-          // Create Conversation Stub (Simplified)
           const { data: s } = await supabase.from('users').select('name,email').eq('id', userId).single();
           const { data: r } = await supabase.from('users').select('name,email').eq('id', split.creator_id).single();
           await supabase.from('conversations').insert({
@@ -421,23 +426,19 @@ export const api = {
 
     respondToRequest: async (requestId: string, status: 'accepted' | 'rejected'): Promise<GenericResponse<null>> => {
       try {
-        // Fetch request first
         const { data: req, error: fetchError } = await supabase.from('split_join_requests').select('*').eq('id', requestId).single();
         if (fetchError || !req) return { success: false, message: 'Request not found.' };
 
         if (status === 'rejected') {
-          // Just update status
           await supabase.from('split_join_requests').update({ status: 'rejected' }).eq('id', requestId);
           return { success: true, message: 'Request rejected.' };
         }
 
         if (status === 'accepted') {
-          // Add to split
           const { data: split } = await supabase.from('meal_splits').select('*').eq('id', req.split_id).single();
           if (!split) return { success: false, message: 'Split not found.' };
 
           if (split.people_joined_ids.includes(req.requester_id)) {
-            // Already inside, just mark accepted
             await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
             return { success: true, message: 'Already joined.' };
           }
@@ -453,8 +454,6 @@ export const api = {
           if (updateError) throw updateError;
 
           await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
-
-          // Update user active split
           await supabase.from('users').update({ active_split_id: req.split_id }).eq('id', req.requester_id);
 
           return { success: true, message: 'Request accepted, user joined.' };
@@ -467,7 +466,6 @@ export const api = {
       }
     },
 
-    // Get my pending requests (for UI status updates)
     getMyRequests: async (userId: string): Promise<GenericResponse<SplitRequest[]>> => {
       try {
         const { data, error } = await supabase.from('split_join_requests').select('*').eq('requester_id', userId);
@@ -480,8 +478,6 @@ export const api = {
 
     create: async (splitData: any): Promise<GenericResponse<MealSplit>> => {
       try {
-        // Time Conflict Check: +/- 4 hours
-        // Fetch all active splits the user is part of
         const { data: userSplits, error: fetchError } = await supabase
           .from('meal_splits')
           .select('*')
@@ -513,9 +509,6 @@ export const api = {
         const { data: split, error } = await supabase.from('meal_splits').insert(newSplit).select().single();
         if (error) throw error;
 
-        // We no longer strictly enforce single active_split_id for blocking, 
-        // but we can still update it for "current focus" if needed, or just ignore it.
-        // Let's update it to the newest one for Profile page compatibility.
         await supabase.from('users').update({ active_split_id: split.id }).eq('id', splitData.creator_id);
 
         return { success: true, message: 'Split created.', data: split as MealSplit };
@@ -525,30 +518,28 @@ export const api = {
     },
 
     join: async (splitId: string, userId: string): Promise<GenericResponse<MealSplit>> => {
-      // Deprecated in favor of requestJoin, but kept for Fallback or Instant Join if we wanted
       return { success: false, message: 'Please use Request to Join.' };
     },
 
     leave: async (splitId: string, userId: string): Promise<GenericResponse<null>> => {
       try {
-        // ALWAYS clear user active_split_id first to prevent "stuck" state
         await supabase.from('users').update({ active_split_id: null }).eq('id', userId);
 
         const { data: split, error: fetchError } = await supabase.from('meal_splits').select('*').eq('id', splitId).maybeSingle();
 
-        // If split doesn't exist, we just return success since we cleaned up the user
         if (fetchError || !split) return { success: true, message: 'Left split (cleanup).' };
 
         const newPeople = split.people_joined_ids.filter((id: string) => id !== userId);
 
-        // Requirements: 
-        // 1. If no one left -> Delete split
         if (newPeople.length === 0) {
-          await supabase.from('meal_splits').delete().eq('id', splitId);
+          // Soft Delete logic (Archive)
+          await supabase.from('meal_splits').update({
+            is_closed: true,
+            people_joined_ids: []
+          }).eq('id', splitId);
           return { success: true, message: 'Left and split deleted (empty).' };
         }
 
-        // 2. Ownership Transfer: If creator leaves, pass to next member
         let updates: any = { people_joined_ids: newPeople };
         if (split.creator_id === userId) {
           const newCreatorId = newPeople[0];
@@ -559,7 +550,6 @@ export const api = {
           }
         }
 
-        // Check is_closed
         const isClosed = newPeople.length >= split.people_needed;
         updates.is_closed = isClosed;
 
@@ -568,7 +558,6 @@ export const api = {
           .update(updates)
           .eq('id', splitId);
 
-        // INBOX CLEANUP: Delete chat between leaver and creator if they are different
         if (split.creator_id !== userId) {
           const chatId = [userId, split.creator_id].sort().join('_');
           await supabase.from('conversations').delete().eq('id', chatId);
@@ -592,7 +581,13 @@ export const api = {
 
     delete: async (splitId: string): Promise<GenericResponse<null>> => {
       try {
-        const { error } = await supabase.from('meal_splits').delete().eq('id', splitId);
+        // Soft Delete logic (Archive) to bypass Foreign Key constraints
+        // We KEEP people_joined_ids so it shows up in their history
+        const { error } = await supabase.from('meal_splits').update({
+          is_closed: true,
+          // people_joined_ids: []  <-- CLEARED THIS PREVIOUSLY, BUT NOW WE KEEP IT FOR HISTORY
+        }).eq('id', splitId);
+
         if (error) throw error;
         return { success: true, message: 'Split deleted successfully.' };
       } catch (error: any) {
@@ -629,7 +624,37 @@ export const api = {
           .order('updated_at', { ascending: false });
 
         if (error) throw error;
-        return { success: true, message: 'Inbox fetched', data: data as Conversation[] };
+
+        // PATCH: Fetch latest user details (especially PFP) for all participants to ensure avatars show up
+        // This is necessary because participant_details in the conversation row might be stale or missing fields
+        const conversations = data as Conversation[];
+        const userIds = new Set<string>();
+        conversations.forEach(c => c.participants.forEach(pId => userIds.add(pId)));
+
+        if (userIds.size > 0) {
+          const { data: users } = await supabase.from('users').select('id, name, email, pfp_url').in('id', Array.from(userIds));
+          const userMap = (users || []).reduce((acc: any, u: any) => {
+            acc[u.id] = u;
+            return acc;
+          }, {});
+
+          conversations.forEach(c => {
+            c.participants.forEach(pId => {
+              if (userMap[pId]) {
+                // Merge fresh data
+                c.participant_details = c.participant_details || {};
+                c.participant_details[pId] = {
+                  ...c.participant_details[pId],
+                  name: userMap[pId].name, // Ensure name is fresh
+                  email: userMap[pId].email,
+                  pfp_url: userMap[pId].pfp_url
+                };
+              }
+            });
+          });
+        }
+
+        return { success: true, message: 'Inbox fetched', data: conversations };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -808,7 +833,31 @@ export const api = {
         }
         return { success: false, message: 'User not found' };
       },
-      create: async (data: any) => ({ success: false, message: "Use signup page (Admin creation not implemented)" })
+      create: async (data: any) => ({ success: false, message: "Use signup page (Admin creation not implemented)" }),
+
+      rewardPoints: async (userIds: string[], amount: number) => {
+        try {
+          if (userIds.length === 0) return { success: false, message: "No users selected" };
+
+          // Using RPC or loop. For mock, loop is fine or single update if ALL.
+          // Supabase doesn't have "UPDATE WHERE ID IN [...] increment" easily without RPC.
+          // Note: "loyalty_points" is on "users" table.
+
+          // Implementation: Fetch current points, add, update. Slow but works for mock.
+          // OR: Use rpc if exists. I'll assume standard update for now.
+
+          for (const uid of userIds) {
+            const { data: u } = await supabase.from('users').select('loyalty_points').eq('id', uid).single();
+            if (u) {
+              const newPoints = (u.loyalty_points || 0) + amount;
+              await supabase.from('users').update({ loyalty_points: newPoints }).eq('id', uid);
+            }
+          }
+          return { success: true, message: ` rewarded ${amount} points to ${userIds.length} users.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
     },
     vendors: {
       create: async (data: any) => {

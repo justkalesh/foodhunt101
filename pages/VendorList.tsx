@@ -40,8 +40,10 @@ const VendorList: React.FC = () => {
     const fetch = async () => {
       const res = await api.vendors.getAll();
       if (res.success && res.data) {
-        setVendors(res.data);
-        setFiltered(res.data);
+        // Only show active vendors
+        const activeVendors = res.data.filter(v => v.is_active !== false);
+        setVendors(activeVendors);
+        setFiltered(activeVendors);
       }
       setLoading(false);
     };

@@ -21,7 +21,8 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
   const [people, setPeople] = useState('4');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false); // Vendor dropdown
+  const [showDishDropdown, setShowDishDropdown] = useState(false); // Dish dropdown
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,34 +92,54 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
+            {/* Dish Name Searchable Dropdown */}
+            {/* Dish Name Searchable Dropdown */}
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dish Name</label>
-              {selectedVendor && menuItems.length > 0 ? (
-                <select
-                  value={dish}
-                  onChange={(e) => {
-                    setDish(e.target.value);
-                    const item = menuItems.find(i => i.name === e.target.value);
-                    if (item) setPrice(item.price.toString());
-                  }}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-[#1e293b] border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
-                  required
-                >
-                  <option value="">Select a dish from menu</option>
-                  {menuItems.map((item, idx) => <option key={idx} value={item.name}>{item.name} (₹{item.price})</option>)}
-                  <option value="custom">Other (Custom)</option>
-                </select>
-              ) : (
+
+              <div className="relative">
                 <input
                   type="text"
                   value={dish}
-                  onChange={(e) => setDish(e.target.value)}
-                  placeholder={selectedVendor ? "Enter dish name (No menu found)" : "Select a vendor first"}
+                  onChange={(e) => {
+                    setDish(e.target.value);
+                    setShowDishDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (selectedVendor && menuItems.length > 0) setShowDishDropdown(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowDishDropdown(false), 200)}
+                  placeholder={selectedVendor ? "Search menu or type custom..." : "Select a vendor first"}
                   disabled={!selectedVendor}
                   className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-[#1e293b] border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
                   required
+                  autoComplete="off"
                 />
-              )}
+
+                {/* Dish Dropdown List */}
+                {showDishDropdown && selectedVendor && menuItems.length > 0 && dish && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
+                    {(() => {
+                      const matches = menuItems.filter(i => i.name.toLowerCase().includes(dish.toLowerCase()));
+                      if (matches.length === 0) return null;
+                      return matches.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            setDish(item.name);
+                            setPrice(item.price.toString());
+                            setShowDishDropdown(false);
+                          }}
+                          className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-900 dark:text-white flex justify-between items-center"
+                        >
+                          <span className="font-medium">{item.name}</span>
+                          <span className="font-bold text-green-600 text-sm">₹{item.price}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="relative" ref={dropdownRef}>
@@ -410,8 +431,13 @@ const MealSplits: React.FC = () => {
           const joined = user && split.people_joined_ids.includes(user.id);
           const requested = user && myRequests.includes(split.id);
 
-          // Requirement: Hide full splits from non-members (unless requested?)
-          if (isFull && !joined) return null;
+          // Requirement: Hide full splits from non-members
+          // Requirement: Hide Closed/Deleted splits from Main Grid unconditionally (User wants "delete" to mean "gone from view")
+
+          if (isClosed) return null;
+
+          // Full splits: Hide if not joined and not creator
+          if (isFull && !joined && split.creator_id !== user?.id) return null;
 
           const progress = (split.people_joined_ids.length / split.people_needed) * 100;
           const vendor = vendors.find(v => v.id === split.vendor_id);

@@ -53,6 +53,7 @@ const AppContent: React.FC = () => {
         <Route path="/vendors/:id" element={<VendorDetail />} />
         <Route path="/splits" element={<MealSplits />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:userId" element={<Profile />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminDashboard />} />

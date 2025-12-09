@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
-import { Message, Conversation } from '../types';
-import { Send, Search, MoreVertical, ArrowLeft, Trash2, X, CheckSquare, Square } from 'lucide-react';
+import { Message, Conversation, Vendor } from '../types';
+import { Send, Search, MoreVertical, ArrowLeft, Trash2, X, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 
@@ -42,6 +42,14 @@ const Inbox: React.FC = () => {
         action: () => { },
         isDestructive: false
     });
+
+    // Mention & Scroll State
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+    const [mentionCursorPos, setMentionCursorPos] = useState<number | null>(null);
+    const [showScrollBottom, setShowScrollBottom] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const sidebarMenuRef = useRef<HTMLDivElement>(null);
@@ -92,8 +100,21 @@ const Inbox: React.FC = () => {
         return () => clearInterval(interval);
     }, [activeChatId, user]);
 
+    // Only scroll to bottom if we are already near bottom OR if it's the first load (loading state check?)
+    // Actually, simple fix: Only scroll if the last message is NEW or if we just switched chats.
+    const lastMessageRef = useRef<string | null>(null);
+
     useEffect(() => {
-        scrollToBottom();
+        if (activeMessages.length > 0) {
+            const lastMsg = activeMessages[activeMessages.length - 1];
+            if (lastMessageRef.current !== lastMsg.id) {
+                // New message!
+                lastMessageRef.current = lastMsg.id;
+                // Only scroll if we were already near bottom OR if it's a self-sent message
+                // For simplicity/UX, chats usually scroll to bottom on new message.
+                scrollToBottom();
+            }
+        }
     }, [activeMessages]);
 
     useEffect(() => {
@@ -106,9 +127,155 @@ const Inbox: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        // Fetch vendors for mentions
+        const loadVendors = async () => {
+            console.log('[DEBUG] Loading vendors for mentions...');
+            const res = await api.vendors.getAll();
+            if (res.success && res.data) {
+                console.log('[DEBUG] Vendors loaded:', res.data.length);
+                setVendors(res.data);
+            } else {
+                console.error('[DEBUG] Failed to load vendors:', res.message);
+            }
+        };
+        loadVendors();
+    }, []);
+
+    const handleScroll = () => {
+        if (scrollContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setShowScrollBottom(!isNearBottom);
+        }
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
+    // Parse Text for Mentions and Basic Markdown
+    const renderMessageContent = (content: string, isMe: boolean) => {
+        // First, split by newlines for bullet handling if needed, but keeping it inline for now
+        // Standardize mentions first? No, let's treat chunks.
+
+        // Actually, simplest way is to split by our Mention Regex, then process text chunks for Markdown.
+        const mentionRegex = /@\[(.*?)\]\(id:(.*?)\)/g;
+
+        const processText = (text: string, keyPrefix: string) => {
+            // Check for **bold**
+            const parts: React.ReactNode[] = [];
+            const boldRegex = /\*\*(.*?)\*\*/g;
+            let lastIndex = 0;
+            let match;
+
+            while ((match = boldRegex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    parts.push(text.substring(lastIndex, match.index));
+                }
+                // Push bold element
+                parts.push(<strong key={`${keyPrefix}-bold-${match.index}`}>{match[1]}</strong>);
+                lastIndex = boldRegex.lastIndex;
+            }
+            if (lastIndex < text.length) {
+                parts.push(text.substring(lastIndex));
+            }
+
+            // Checking for single * is tricky without breaking structure. 
+            // The user showed "* **Oven**", which implies bullet points.
+            // Let's replace " * " with a bullet character if it looks like a list item?
+            // Or just a simple text replace for known patterns if not parsing full MD.
+
+            // Let's clean up " * " to " • " for nicer display in text chunks
+            return parts.map((p, i) => {
+                if (typeof p === 'string') {
+                    // Replace " * " with " • " for list appearance
+                    return p.replace(/(\n|^)\s*\*\s*/g, '$1• ');
+                }
+                return p;
+            });
+        };
+
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = mentionRegex.exec(content)) !== null) {
+            if (match.index > lastIndex) {
+                const textChunk = content.substring(lastIndex, match.index);
+                parts.push(...processText(textChunk, `text-${lastIndex}`));
+            }
+            parts.push(
+                <Link
+                    key={`mention-${match.index}`}
+                    to={`/vendors/${match[2]}`}
+                    className={`font-bold hover:underline ${isMe ? 'text-white' : 'text-primary-600'}`}
+                >
+                    @{match[1]}
+                </Link>
+            );
+            lastIndex = mentionRegex.lastIndex;
+        }
+
+        if (lastIndex < content.length) {
+            parts.push(...processText(content.substring(lastIndex), `text-${lastIndex}`));
+        }
+
+        return parts.length > 0 ? parts : content;
+    };
+
+    // Strip mentions for preview
+    const getPreviewText = (content: string) => {
+        if (!content) return '';
+        return content.replace(/@\[(.*?)\]\(id:.*?\)/g, '@$1');
+    };
+
+    // Input Change for Mention Detection
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setInputText(val);
+
+        const selectionStart = e.target.selectionStart;
+        if (selectionStart !== null) {
+            // Check for @ symbol before cursor
+            const textBeforeCursor = val.slice(0, selectionStart);
+            const atIndex = textBeforeCursor.lastIndexOf('@');
+
+            if (atIndex !== -1) {
+                // Check if there is a space before @ or it is start of line
+                if (atIndex === 0 || textBeforeCursor[atIndex - 1] === ' ') {
+                    // Extract query
+                    const query = textBeforeCursor.slice(atIndex + 1);
+                    // Allow mentions only if no space yet? or allow spaces for names?
+                    // Let's assume vendor names have spaces, so we allow it until we hit a special char or something.
+                    // For simplicity, reset if newline or another @.
+                    console.log('[DEBUG] Mention Triggered. Query:', query);
+                    setMentionQuery(query);
+                    setMentionCursorPos(atIndex);
+                    return;
+                }
+            }
+        }
+        setMentionQuery(null);
+        setMentionCursorPos(null);
+    };
+
+    const insertMention = (vendor: Vendor) => {
+        if (mentionCursorPos === null || !inputRef.current) return;
+
+        const beforeMsg = inputText.slice(0, mentionCursorPos);
+        const afterMsg = inputText.slice(inputRef.current.selectionStart || inputText.length);
+
+        const newText = `${beforeMsg}@[${vendor.name}](id:${vendor.id}) ${afterMsg}`;
+        setInputText(newText);
+        setMentionQuery(null);
+        setMentionCursorPos(null);
+        inputRef.current.focus();
+    };
+
+    const filteredVendors = mentionQuery !== null
+        ? vendors.filter(v => v.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 5)
+        : [];
 
     const fetchInbox = async () => {
         if (!user) return;
@@ -148,7 +315,8 @@ const Inbox: React.FC = () => {
             name: details.name || 'Unknown',
             email: details.email || '',
             initial: (details.name || '?')[0]?.toUpperCase() || '?',
-            avatar: details.avatar
+            avatar: details.pfp_url || details.avatar || undefined, // Support both fields
+            id: otherId
         };
     };
 
@@ -406,8 +574,17 @@ const Inbox: React.FC = () => {
                                         {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
                                     </div>
                                 )}
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-100 to-orange-200 dark:from-primary-900 dark:to-orange-900 flex items-center justify-center text-lg font-bold text-primary-700 dark:text-primary-300 flex-shrink-0">
-                                    {initial}
+                                <div className="relative w-12 h-12 flex-shrink-0">
+                                    {getConversationInfo(conv).avatar ? (
+                                        <img src={getConversationInfo(conv).avatar} alt="" className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-100 to-orange-200 dark:from-primary-900 dark:to-orange-900 flex items-center justify-center text-lg font-bold text-primary-700 dark:text-primary-300">
+                                            {initial}
+                                        </div>
+                                    )}
+                                    {unread > 0 && activeChatId !== conv.id && (
+                                        <span className="absolute top-0 right-0 bg-primary-600 rounded-full w-3 h-3 border-2 border-white dark:border-gray-900"></span>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0 border-b border-gray-100 dark:border-gray-800 pb-3">
                                     <div className="flex justify-between items-baseline mb-1">
@@ -421,7 +598,7 @@ const Inbox: React.FC = () => {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <p className="text-sm text-gray-500 dark:text-gray-400 truncate pr-2">
-                                            {conv.last_message?.content || 'No messages'}
+                                            {getPreviewText(conv.last_message?.content || 'No messages')}
                                         </p>
                                         {unread > 0 && activeChatId !== conv.id && (
                                             <span className="bg-primary-600 rounded-full w-2.5 h-2.5 block"></span>
@@ -448,15 +625,23 @@ const Inbox: React.FC = () => {
                             <button onClick={() => setActiveChatId(null)} className="md:hidden text-gray-500 dark:text-gray-400 mr-1">
                                 <ArrowLeft size={24} />
                             </button>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-100 to-orange-200 dark:from-primary-900 dark:to-orange-900 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold">
-                                {displayInitial}
-                            </div>
-                            <div>
-                                <div className="flex items-baseline gap-2">
-                                    <h2 className="font-bold text-gray-900 dark:text-gray-100">{displayUserName}</h2>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400 opacity-75">#{displayUserId}</span>
+                            <Link to={`/profile/${getOtherUserId(activeChatId)}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    {activeConversation?.participant_details?.[getOtherUserId(activeChatId)]?.pfp_url ? (
+                                        <img src={activeConversation.participant_details[getOtherUserId(activeChatId)].pfp_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-primary-100 to-orange-200 dark:from-primary-900 dark:to-orange-900 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold">
+                                            {displayInitial}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                                <div>
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 className="font-bold text-gray-900 dark:text-gray-100">{displayUserName}</h2>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 opacity-75">View Profile</span>
+                                    </div>
+                                </div>
+                            </Link>
                         </div>
                     </div>
 
@@ -464,73 +649,128 @@ const Inbox: React.FC = () => {
                     <div className="absolute inset-0 opacity-5 pointer-events-none dark:opacity-5 opacity-[0.02]" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' }}></div>
 
                     {/* Messages List */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2 z-10 custom-scrollbar">
+                    <div
+                        className="flex-1 overflow-y-auto p-4 space-y-2 z-10 custom-scrollbar scroll-smooth"
+                        onScroll={handleScroll}
+                        ref={scrollContainerRef}
+                    >
                         {activeMessages.map((msg, idx) => {
                             const isMe = msg.sender_id === user?.id;
+                            const showDateSep = idx === 0 || new Date(msg.created_at).toDateString() !== new Date(activeMessages[idx - 1].created_at).toDateString();
+
+                            const dateLabel = (() => {
+                                const d = new Date(msg.created_at);
+                                const today = new Date();
+                                const yesterday = new Date(today);
+                                yesterday.setDate(yesterday.getDate() - 1);
+
+                                if (d.toDateString() === today.toDateString()) return 'Today';
+                                if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                                return d.toLocaleDateString();
+                            })();
+
                             return (
-                                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div
-                                        className={`max-w-[70%] md:max-w-[60%] rounded-2xl px-4 py-2 shadow-sm text-sm ${isMe
-                                            ? 'bg-primary-600 text-white rounded-tr-none'
-                                            : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-700'
-                                            }`}
-                                    >
-                                        <div className="break-words">
-                                            {msg.content}
-                                        </div>
-                                        {msg.request_id && !isMe && msg.request_status === 'pending' && (
-                                            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex gap-2">
-                                                <button
-                                                    onClick={async () => {
-                                                        const res = await api.splits.respondToRequest(msg.request_id!, 'accepted');
-                                                        if (res.success) {
-                                                            // Update local message state to hide buttons
-                                                            setActiveMessages(prev => prev.map(m => m.id === msg.id ? { ...m, request_status: 'accepted' } : m));
-                                                        } else alert(res.message);
-                                                    }}
-                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded text-xs font-bold"
-                                                >
-                                                    Accept
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        const res = await api.splits.respondToRequest(msg.request_id!, 'rejected');
-                                                        if (res.success) {
-                                                            // Update local message state to hide buttons
-                                                            setActiveMessages(prev => prev.map(m => m.id === msg.id ? { ...m, request_status: 'rejected' } : m));
-                                                        } else alert(res.message);
-                                                    }}
-                                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded text-xs font-bold"
-                                                >
-                                                    Reject
-                                                </button>
-                                            </div>
-                                        )}
-                                        {msg.request_id && msg.request_status && msg.request_status !== 'pending' && (
-                                            <div className="mt-2 text-xs italic text-gray-500">
-                                                {msg.request_status === 'accepted' ? 'Request Accepted' : 'Request Rejected'}
-                                            </div>
-                                        )}
-                                        <div className={`flex justify-end items-center gap-1 text-[10px] mt-1 ${isMe ? 'text-primary-100' : 'text-gray-400'}`}>
-                                            <span>
-                                                {formatTime(msg.created_at)}
+                                <React.Fragment key={msg.id}>
+                                    {showDateSep && (
+                                        <div className="flex justify-center my-4">
+                                            <span className="bg-gray-200 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full">
+                                                {dateLabel}
                                             </span>
                                         </div>
+                                    )}
+                                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        <div
+                                            className={`max-w-[70%] md:max-w-[60%] rounded-2xl px-4 py-2 shadow-sm text-sm ${isMe
+                                                ? 'bg-primary-600 text-white rounded-tr-none'
+                                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-700'
+                                                }`}
+                                        >
+                                            <div className="break-words">
+                                                {renderMessageContent(msg.content, isMe)}
+                                            </div>
+                                            {/* (Rest of message content like request buttons...) */}
+                                            {msg.request_id && !isMe && msg.request_status === 'pending' && (
+                                                <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            const res = await api.splits.respondToRequest(msg.request_id!, 'accepted');
+                                                            if (res.success) {
+                                                                setActiveMessages(prev => prev.map(m => m.id === msg.id ? { ...m, request_status: 'accepted' } : m));
+                                                            } else alert(res.message);
+                                                        }}
+                                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded text-xs font-bold"
+                                                    >
+                                                        Accept
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const res = await api.splits.respondToRequest(msg.request_id!, 'rejected');
+                                                            if (res.success) {
+                                                                setActiveMessages(prev => prev.map(m => m.id === msg.id ? { ...m, request_status: 'rejected' } : m));
+                                                            } else alert(res.message);
+                                                        }}
+                                                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded text-xs font-bold"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {msg.request_id && msg.request_status && msg.request_status !== 'pending' && (
+                                                <div className="mt-2 text-xs italic text-gray-500">
+                                                    {msg.request_status === 'accepted' ? 'Request Accepted' : 'Request Rejected'}
+                                                </div>
+                                            )}
+                                            <div className={`flex justify-end items-center gap-1 text-[10px] mt-1 ${isMe ? 'text-primary-100' : 'text-gray-400'}`}>
+                                                <span>
+                                                    {formatTime(msg.created_at)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                </React.Fragment>
                             );
                         })}
                         <div ref={messagesEndRef} />
+
+                        {/* Scroll to Bottom Button */}
+                        {showScrollBottom && (
+                            <button
+                                onClick={scrollToBottom}
+                                className="absolute bottom-20 right-6 bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 text-primary-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all z-20 animate-bounce-slow"
+                            >
+                                <ChevronDown size={24} />
+                            </button>
+                        )}
                     </div>
 
                     {/* Input Area */}
-                    <div className="p-3 bg-white dark:bg-gray-800 flex items-center gap-2 z-10 border-t border-gray-200 dark:border-gray-700">
+                    <div className="p-3 bg-white dark:bg-gray-800 flex items-center gap-2 z-10 border-t border-gray-200 dark:border-gray-700 relative">
+                        {/* Vendor Suggestions Popup */}
+                        {mentionQuery !== null && filteredVendors.length > 0 && (
+                            <div className="absolute bottom-full left-4 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                                <div className="p-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 uppercase">
+                                    Mention Vendor
+                                </div>
+                                {filteredVendors.map(v => (
+                                    <button
+                                        key={v.id}
+                                        onClick={() => insertMention(v)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+                                    >
+                                        <span>{v.name}</span>
+                                        {/* <span className="text-xs text-gray-500">4.5★</span> Optional: Add rating */}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
                             <input
+                                ref={inputRef}
                                 type="text"
                                 value={inputText}
-                                onChange={e => setInputText(e.target.value)}
-                                placeholder="Type a message"
+                                onChange={handleInputChange}
+                                placeholder="Type a message (@ to mention vendor)"
                                 className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-full px-6 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all placeholder-gray-500 dark:placeholder-gray-400"
                             />
                             <button

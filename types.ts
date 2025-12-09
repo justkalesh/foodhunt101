@@ -106,7 +106,7 @@ export interface AuthResponse {
 export interface Conversation {
   id: string;
   participants: string[]; // [userId1, userId2] for querying
-  participant_details: Record<string, { name: string; email: string; avatar?: string }>; // Cache user info
+  participant_details: Record<string, { name: string; email: string; avatar?: string; pfp_url?: string }>; // Cache user info
   last_message: {
     content: string;
     sender_id: string;
