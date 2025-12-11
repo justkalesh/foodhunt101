@@ -3,85 +3,167 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { generateBotResponse } from '../services/geminiService';
 import { api } from '../services/mockDatabase';
+import { Link } from 'react-router-dom'; // Import Link
+import { Vendor } from '../types'; // Import Vendor
 
 const Chatbot: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
-    { role: 'bot', text: 'Hey! Hungry? Ask me about cheap food, healthy options, or where to find pizza!' }
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
+        { role: 'bot', text: 'Hey! Hungry? Ask me about cheap food, healthy options, or where to find pizza!' }
+    ]);
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [vendors, setVendors] = useState<Vendor[]>([]); // Store vendors
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    // Fetch vendors on mount for linking logic
+    useEffect(() => {
+        const fetchVendors = async () => {
+            const res = await api.vendors.getAll();
+            if (res.success && res.data) {
+                setVendors(res.data);
+            }
+        };
+        fetchVendors();
+    }, []);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
 
-    const userMsg = input;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInput('');
-    setLoading(true);
+    const handleSend = async () => {
+        if (!input.trim()) return;
 
-    // Get context for the bot
-    const vendorsRes = await api.vendors.getAll();
-    const context = JSON.stringify(vendorsRes.data?.map(v => ({ name: v.name, cuisine: v.cuisine, location: v.location, price: v.avg_price_per_meal })));
+        const userMsg = input;
+        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+        setInput('');
+        setLoading(true);
 
-    const reply = await generateBotResponse(userMsg, context);
+        try {
+            // Get context for the bot safely
+            let context = '';
+            try {
+                const vendorsRes = await api.vendors.getAll(); // Refreshing context as well, could use state but safer to fetch fresh
+                if (vendorsRes && vendorsRes.data) {
+                    context = JSON.stringify(vendorsRes.data.map(v => ({ name: v.name, cuisine: v.cuisine, location: v.location, price: v.avg_price_per_meal })));
+                }
+            } catch (err) {
+                console.error("Error fetching context:", err);
+            }
 
-    setMessages(prev => [...prev, { role: 'bot', text: reply }]);
-    setLoading(false);
-  };
+            const reply = await generateBotResponse(userMsg, context);
 
-  return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-105"
-        >
-          <MessageCircle size={28} />
-        </button>
-      )}
+            if (!reply) throw new Error("Empty response");
 
-      {isOpen && (
-        <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px]">
-          <div className="bg-primary-600 p-4 flex justify-between items-center text-white">
-            <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18} /> FoodieBot</h3>
-            <button onClick={() => setIsOpen(false)}><X size={20} /></button>
-          </div>
+            // Helper to strip markdown (safely)
+            const cleanMarkdown = (text: string) => {
+                if (typeof text !== 'string') return '';
+                return text
+                    .replace(/[*_#`]/g, '')          // Remove all markdown symbols
+                    .replace(/\n\s*-\s/g, '\n\u2022 ') // Replace dash lists
+                    .trim();
+            };
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-            {messages.map((m, idx) => (
-              <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-lg text-sm ${m.role === 'user' ? 'bg-primary-600 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white rounded-bl-none'}`}>
-                  {m.text}
+            setMessages(prev => [...prev, { role: 'bot', text: cleanMarkdown(reply) }]);
+        } catch (error) {
+            console.error("Chatbot Error:", error);
+            setMessages(prev => [...prev, { role: 'bot', text: "Sorry, I'm having a bit of trouble connecting right now. Please try again." }]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Helper to renderer text with clickable vendor links
+    const renderMessageWithLinks = (text: string, role: string) => {
+        if (role === 'user') return text;
+
+        // Find known vendor names
+        // Sort by length desc to match "Burger King" before "Burger"
+        const sortedVendors = [...vendors].sort((a, b) => b.name.length - a.name.length);
+
+        // Create a regex pattern
+        // Escape special regex chars in names if any
+        const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(`(${sortedVendors.map(v => escapeRegExp(v.name)).join('|')})`, 'gi');
+
+        const parts = text.split(pattern);
+
+        return parts.map((part, i) => {
+            const vendor = vendors.find(v => v.name.toLowerCase() === part.toLowerCase());
+            if (vendor) {
+                return (
+                    <Link
+                        key={i}
+                        to={`/vendors/${vendor.id}`}
+                        className="font-bold underline text-primary-600 dark:text-primary-400 hover:text-primary-800"
+                    >
+                        {part}
+                    </Link>
+                );
+            }
+            return part;
+        });
+    };
+
+    return (
+        <div className="fixed bottom-6 right-6 z-50">
+            {!isOpen && (
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-105"
+                >
+                    <MessageCircle size={28} />
+                </button>
+            )}
+
+            {isOpen && (
+                <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px] animate-fade-in-up">
+                    <div className="bg-primary-600 p-4 flex justify-between items-center text-white">
+                        <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18} /> FoodieBot</h3>
+                        <button onClick={() => setIsOpen(false)}><X size={20} /></button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth custom-scrollbar" ref={scrollRef}>
+                        {messages.map((m, idx) => (
+                            <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${m.role === 'user' ? 'bg-primary-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-600'}`}>
+                                    {renderMessageWithLinks(m.text, m.role)}
+                                </div>
+                            </div>
+                        ))}
+                        {loading && (
+                            <div className="flex justify-start">
+                                <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-2xl rounded-bl-none text-xs text-gray-500 dark:text-gray-400 italic flex gap-1 items-center">
+                                    <span className="animate-bounce">●</span>
+                                    <span className="animate-bounce delay-100">●</span>
+                                    <span className="animate-bounce delay-200">●</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-3 border-t dark:border-gray-700 flex gap-2 bg-gray-50 dark:bg-gray-900">
+                        <input
+                            className="flex-1 border dark:border-gray-600 bg-white dark:bg-dark-800 dark:text-white rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
+                            placeholder="Ask about food..."
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        />
+                        <button
+                            onClick={handleSend}
+                            className={`p-2 rounded-full transition-colors ${input.trim() ? 'text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-800' : 'text-gray-400 cursor-not-allowed'}`}
+                            disabled={!input.trim()}
+                        >
+                            <Send size={20} />
+                        </button>
+                    </div>
                 </div>
-              </div>
-            ))}
-            {loading && <div className="text-xs text-gray-400 italic">Thinking...</div>}
-          </div>
-
-          <div className="p-3 border-t dark:border-gray-700 flex gap-2">
-            <input
-              className="flex-1 border dark:border-gray-600 dark:bg-dark-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Ask about food..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            />
-            <button onClick={handleSend} className="text-primary-600 hover:text-primary-700 p-2">
-              <Send size={20} />
-            </button>
-          </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default Chatbot;
