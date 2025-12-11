@@ -17,6 +17,6 @@ export const generateBotResponse = async (userMessage: string, contextData: stri
   } catch (error) {
     console.warn("Gemini API Error (Using Mock Fallback):", error);
     // FALLBACK FOR DEMO/LOCAL DEV when backend isn't running
-    return "I'm having trouble forcing a connection to the AI brain right now (Backend API unreachable). \n\nHowever, I can still tell you that **Burger King** has great deals, and **Northen Delight** is perfect for spicy food lovers! Try visiting them.";
+    return "I'm having trouble forcing a connection to the AI brain right now (Backend API unreachable). \n\nHowever, I can still tell you that **Northen Delight** is perfect for some real Indian taste.";
   }
 };
