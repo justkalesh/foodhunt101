@@ -45,10 +45,62 @@ const Chatbot: React.FC = () => {
             // Get context for the bot safely
             let context = '';
             try {
-                const vendorsRes = await api.vendors.getAll(); // Refreshing context as well, could use state but safer to fetch fresh
-                if (vendorsRes && vendorsRes.data) {
-                    context = JSON.stringify(vendorsRes.data.map(v => ({ name: v.name, cuisine: v.cuisine, location: v.location, price: v.avg_price_per_meal })));
+                // Fetch ALL context data in parallel
+                const [vendorsRes, menusRes, reviewsRes, splitsRes] = await Promise.all([
+                    api.vendors.getAll(),
+                    api.menus.getAll(),
+                    api.reviews.getRecent(15),
+                    api.splits.getAll()
+                ]);
+
+                let contextObj = {
+                    vendors: [] as any[],
+                    menu_items: [] as any[],
+                    recent_reviews: [] as any[],
+                    active_splits: [] as any[]
+                };
+
+                if (vendorsRes.success && vendorsRes.data) {
+                    contextObj.vendors = vendorsRes.data.map(v => ({
+                        id: v.id,
+                        name: v.name,
+                        cuisine: v.cuisine,
+                        location: v.location,
+                        price: v.avg_price_per_meal,
+                        popular_item: v.recommended_item_name
+                    }));
                 }
+
+                if (menusRes.success && menusRes.data) {
+                    // Group menus by vendor for efficiency is implied by providing vendor_id
+                    // But to save tokens, we might just list popular ones or list with vendor_id
+                    // Let's list simplified items:
+                    contextObj.menu_items = menusRes.data.map(m => ({
+                        vendor_id: m.vendor_id,
+                        name: m.name,
+                        price: m.price,
+                        recommended: m.is_recommended
+                    }));
+                }
+
+                if (reviewsRes.success && reviewsRes.data) {
+                    contextObj.recent_reviews = reviewsRes.data.map(r => ({
+                        vendor_id: r.vendor_id,
+                        rating: r.rating,
+                        text: r.review_text.substring(0, 100) // Truncate
+                    }));
+                }
+
+                if (splitsRes.success && splitsRes.data) {
+                    contextObj.active_splits = splitsRes.data.map(s => ({
+                        vendor: s.vendor_name,
+                        dish: s.dish_name,
+                        time: s.split_time,
+                        needed: s.people_needed - (s.people_joined_ids?.length || 0)
+                    }));
+                }
+
+                context = JSON.stringify(contextObj);
             } catch (err) {
                 console.error("Error fetching context:", err);
             }

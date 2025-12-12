@@ -298,6 +298,37 @@ export const api = {
     }
   },
 
+  // GLOBAL MENU FETCHER (Context for AI)
+  menus: {
+    getAll: async (): Promise<GenericResponse<MenuItem[]>> => {
+      try {
+        const { data, error } = await supabase.from('menu_items').select('*').eq('is_active', true);
+        if (error) throw error;
+        return { success: true, message: 'Fetched all menus.', data: data as MenuItem[] };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    }
+  },
+
+  // GLOBAL REVIEWS FETCHER (Context for AI)
+  reviews: {
+    getRecent: async (limit: number = 20): Promise<GenericResponse<Review[]>> => {
+      try {
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (error) throw error;
+        return { success: true, message: 'Fetched recent reviews.', data: data as Review[] };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    }
+  },
+
   // MEAL SPLITS
   splits: {
     getAll: async (userId?: string): Promise<GenericResponse<MealSplit[]>> => {
