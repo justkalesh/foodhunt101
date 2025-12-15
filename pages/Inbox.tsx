@@ -252,16 +252,19 @@ const Inbox: React.FC = () => {
         e.preventDefault();
         if (!user || !activeChatId || !inputText.trim()) return;
 
+        const textToSend = inputText.trim();
+        setInputText(''); // Clear immediately to prevent duplicates
+
         const otherId = getOtherUserId(activeChatId);
-        const res = await api.messages.send(user.id, otherId, inputText.trim());
+        const res = await api.messages.send(user.id, otherId, textToSend);
 
         if (res.success) {
-            setInputText('');
             // Optional: Optimistically append message if latency is an issue, 
             // but Realtime subscription should handle it quickly.
             fetchInbox(); // Update timestamp in sidebar
         } else {
             alert('Failed to send message');
+            setInputText(textToSend); // Restore if failed
         }
     };
 
