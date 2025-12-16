@@ -8,6 +8,8 @@ import Chatbot from './components/Chatbot';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import TermsAndConditions from './pages/TermsAndConditions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import CompleteProfile from './pages/CompleteProfile';
 import VendorList from './pages/VendorList';
 import VendorDetail from './pages/VendorDetail';
@@ -17,6 +19,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminVendors from './pages/AdminVendors';
 import AdminUsers from './pages/AdminUsers';
 import { usePushNotifications } from './hooks/usePushNotifications';
+import CookieBanner from './components/CookieBanner';
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -59,11 +62,14 @@ const AppContent: React.FC = () => {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/vendors" element={<AdminVendors />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
 
         <Route path="/inbox" element={<Inbox />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {showChatbot && <Chatbot />}
+      <CookieBanner />
     </div>
   );
 };

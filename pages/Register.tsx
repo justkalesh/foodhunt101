@@ -102,6 +102,18 @@ const Register: React.FC = () => {
             />
           </div>
 
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              required
+              id="terms"
+              className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-600 dark:text-gray-400">
+              I agree to the <Link to="/terms" className="text-primary-600 hover:underline">Terms & Conditions</Link>
+            </label>
+          </div>
+
           <button
             type="submit" disabled={loading}
             className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50"
