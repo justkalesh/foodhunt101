@@ -35,6 +35,17 @@ const AdminVendors: React.FC = () => {
   const [mediumPrice, setMediumPrice] = useState('');
   const [largePrice, setLargePrice] = useState('');
 
+  // Edit Menu Item State
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editHasSizes, setEditHasSizes] = useState(false);
+  const [editSmallPrice, setEditSmallPrice] = useState('');
+  const [editMediumPrice, setEditMediumPrice] = useState('');
+  const [editLargePrice, setEditLargePrice] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Menu Scanning State
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,6 +214,82 @@ const AdminVendors: React.FC = () => {
     } else {
       alert(res.message);
     }
+  };
+
+  const startEditItem = (item: MenuItem) => {
+    setEditingItemId(item.id);
+    setEditName(item.name);
+    setEditCategory(item.category || '');
+    // Check if item has size variants
+    const hasSmall = item.small_price != null;
+    const hasMedium = item.medium_price != null;
+    const hasLarge = item.large_price != null;
+    const hasSizes = hasSmall || hasMedium || hasLarge;
+
+    setEditHasSizes(hasSizes);
+    if (hasSizes) {
+      setEditPrice('');
+      setEditSmallPrice(item.small_price?.toString() || '');
+      setEditMediumPrice(item.medium_price?.toString() || '');
+      setEditLargePrice(item.large_price?.toString() || '');
+    } else {
+      setEditPrice(item.price?.toString() || '');
+      setEditSmallPrice('');
+      setEditMediumPrice('');
+      setEditLargePrice('');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingItemId(null);
+    setEditName('');
+    setEditCategory('');
+    setEditPrice('');
+    setEditHasSizes(false);
+    setEditSmallPrice('');
+    setEditMediumPrice('');
+    setEditLargePrice('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingItemId || !selectedVendorForMenu) return;
+
+    // Validate
+    if (!editName.trim()) {
+      alert('Item name is required');
+      return;
+    }
+    if (!editHasSizes && !editPrice) {
+      alert('Please enter a price');
+      return;
+    }
+    if (editHasSizes && !editSmallPrice && !editMediumPrice && !editLargePrice) {
+      alert('Please enter at least one size price');
+      return;
+    }
+
+    setSavingEdit(true);
+
+    const updatedItem: MenuItem = {
+      id: editingItemId,
+      vendor_id: selectedVendorForMenu.id,
+      name: editName.trim(),
+      category: editCategory.trim() || undefined,
+      price: editHasSizes ? 0 : parseFloat(editPrice),
+      is_active: true,
+      small_price: editHasSizes && editSmallPrice ? parseFloat(editSmallPrice) : undefined,
+      medium_price: editHasSizes && editMediumPrice ? parseFloat(editMediumPrice) : undefined,
+      large_price: editHasSizes && editLargePrice ? parseFloat(editLargePrice) : undefined,
+    };
+
+    const res = await api.vendors.updateMenuItem(updatedItem);
+    if (res.success && res.data) {
+      setMenuItems(menuItems.map(item => item.id === editingItemId ? res.data! : item));
+      cancelEdit();
+    } else {
+      alert(res.message || 'Failed to update item');
+    }
+    setSavingEdit(false);
   };
 
   const handleToggleRecommended = async (item: MenuItem) => {
@@ -663,42 +750,135 @@ const AdminVendors: React.FC = () => {
                   ) : (
                     <div className="bg-white dark:bg-dark-900 border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700">
                       {menuItems.map(item => (
-                        <div key={item.id} className="p-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                          <div>
-                            <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                              {item.name}
-                              {item.category && <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">{item.category}</span>}
-                              {item.is_recommended && <Star size={14} className="fill-yellow-400 text-yellow-400" />}
+                        <div key={item.id}>
+                          {editingItemId === item.id ? (
+                            /* Editing mode - inline form */
+                            <div className="p-3 bg-gray-50 dark:bg-gray-800/50">
+                              <div className="flex flex-wrap gap-3 mb-3">
+                                <input
+                                  type="text"
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  placeholder="Item Name"
+                                  className="flex-1 min-w-[150px] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                />
+                                <input
+                                  type="text"
+                                  value={editCategory}
+                                  onChange={(e) => setEditCategory(e.target.value)}
+                                  placeholder="Category"
+                                  className="w-[120px] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                />
+                              </div>
+
+                              {/* Price inputs with S/M/L toggle */}
+                              <div className="flex flex-wrap gap-3 mb-3 items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditHasSizes(!editHasSizes)}
+                                  className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${editHasSizes
+                                      ? 'bg-primary-600 text-white'
+                                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                    }`}
+                                >
+                                  S/M/L
+                                </button>
+
+                                {editHasSizes ? (
+                                  <>
+                                    <input
+                                      type="number"
+                                      value={editSmallPrice}
+                                      onChange={(e) => setEditSmallPrice(e.target.value)}
+                                      placeholder="S ₹"
+                                      className="w-[70px] px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={editMediumPrice}
+                                      onChange={(e) => setEditMediumPrice(e.target.value)}
+                                      placeholder="M ₹"
+                                      className="w-[70px] px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                    />
+                                    <input
+                                      type="number"
+                                      value={editLargePrice}
+                                      onChange={(e) => setEditLargePrice(e.target.value)}
+                                      placeholder="L ₹"
+                                      className="w-[70px] px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                    />
+                                  </>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={editPrice}
+                                    onChange={(e) => setEditPrice(e.target.value)}
+                                    placeholder="Price ₹"
+                                    className="w-[100px] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-900 text-gray-900 dark:text-white text-sm"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Save/Cancel buttons */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleSaveEdit}
+                                  disabled={savingEdit}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold disabled:opacity-50"
+                                >
+                                  {savingEdit ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-1.5 rounded-lg text-sm font-bold"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button
-                              onClick={() => handleToggleRecommended(item)}
-                              className={`p-1 rounded transition-colors ${item.is_recommended ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-400 hover:text-yellow-400'}`}
-                              title={item.is_recommended ? "Recommended Item" : "Mark as Recommended"}
+                          ) : (
+                            /* Display mode - clickable row */
+                            <div
+                              className="p-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                              onClick={() => startEditItem(item)}
                             >
-                              <Star size={18} className={item.is_recommended ? "fill-yellow-400" : ""} />
-                            </button>
-                            {/* Price display - show S/M/L if size prices exist */}
-                            {(item.small_price != null || item.medium_price != null || item.large_price != null) ? (
-                              <span className="font-bold text-green-600 text-sm">
-                                {item.small_price != null && `S:₹${item.small_price}`}
-                                {item.small_price != null && (item.medium_price != null || item.large_price != null) && ' | '}
-                                {item.medium_price != null && `M:₹${item.medium_price}`}
-                                {item.medium_price != null && item.large_price != null && ' | '}
-                                {item.large_price != null && `L:₹${item.large_price}`}
-                              </span>
-                            ) : (
-                              <span className="font-bold text-green-600">₹{item.price}</span>
-                            )}
-                            <button
-                              onClick={() => handleDeleteMenuItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Delete Item"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                              <div>
+                                <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                  {item.name}
+                                  {item.category && <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">{item.category}</span>}
+                                  {item.is_recommended && <Star size={14} className="fill-yellow-400 text-yellow-400" />}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleToggleRecommended(item); }}
+                                  className={`p-1 rounded transition-colors ${item.is_recommended ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-400 hover:text-yellow-400'}`}
+                                  title={item.is_recommended ? "Recommended Item" : "Mark as Recommended"}
+                                >
+                                  <Star size={18} className={item.is_recommended ? "fill-yellow-400" : ""} />
+                                </button>
+                                {/* Price display - show S/M/L if size prices exist */}
+                                {(item.small_price != null || item.medium_price != null || item.large_price != null) ? (
+                                  <span className="font-bold text-green-600 text-sm">
+                                    {item.small_price != null && `S:₹${item.small_price}`}
+                                    {item.small_price != null && (item.medium_price != null || item.large_price != null) && ' | '}
+                                    {item.medium_price != null && `M:₹${item.medium_price}`}
+                                    {item.medium_price != null && item.large_price != null && ' | '}
+                                    {item.large_price != null && `L:₹${item.large_price}`}
+                                  </span>
+                                ) : (
+                                  <span className="font-bold text-green-600">₹{item.price}</span>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteMenuItem(item.id); }}
+                                  className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
