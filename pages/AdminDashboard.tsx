@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/mockDatabase';
+import { api, syncAllVendorRatings } from '../services/mockDatabase';
 import { UserRole } from '../types';
 import { seedDatabase } from '../services/seeder';
-import { Shield, Users, Store, Star, ArrowRight, Database } from 'lucide-react';
+import { Shield, Users, Store, Star, ArrowRight, Database, RefreshCw } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -37,6 +37,14 @@ const AdminDashboard: React.FC = () => {
         setLoading(false);
     };
 
+    const handleSyncRatings = async () => {
+        if (!window.confirm('Sync all vendor ratings from existing reviews?')) return;
+        setLoading(true);
+        const res = await syncAllVendorRatings();
+        alert(res.message);
+        setLoading(false);
+    };
+
     if (loading) return <div className="p-10 text-center dark:text-white">Loading Dashboard...</div>;
 
     return (
@@ -52,13 +60,22 @@ const AdminDashboard: React.FC = () => {
                             <p className="text-gray-500 dark:text-gray-400">Welcome back, {user?.name}</p>
                         </div>
                     </div>
-                    <button
-                        onClick={handleSeed}
-                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
-                    >
-                        <Database size={20} />
-                        Seed Database
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleSyncRatings}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm"
+                        >
+                            <RefreshCw size={20} />
+                            Sync Ratings
+                        </button>
+                        <button
+                            onClick={handleSeed}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
+                        >
+                            <Database size={20} />
+                            Seed Database
+                        </button>
+                    </div>
                 </div>
 
                 {/* Stats Grid */}

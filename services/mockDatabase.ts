@@ -41,6 +41,76 @@ const recalculateVendorStats = async (vendorId: string) => {
   }).eq('id', vendorId);
 };
 
+/**
+ * Calculates a dynamic popularity score for a vendor based on engagement metrics.
+ * 
+ * Formula: Popularity = (RatingScore × 40%) + (EngagementScore × 60%)
+ * - RatingScore: (rating_avg / 5) × 100 (normalized from 0-100)
+ * - EngagementScore: min(100, (review_count × 5) + (split_count × 10))
+ * 
+ * @param vendorId - The vendor's UUID
+ * @param ratingAvg - The vendor's average rating (0-5)
+ * @param ratingCount - The vendor's total review count
+ * @returns A popularity score from 0-100
+ */
+const calculatePopularity = async (vendorId: string, ratingAvg: number, ratingCount: number): Promise<number> => {
+  // RatingScore: Normalize rating (0-5) to a 0-100 scale
+  const ratingScore = (ratingAvg / 5) * 100;
+
+  // EngagementScore: Count meal splits for this vendor
+  const { count: splitCount } = await supabase
+    .from('meal_splits')
+    .select('*', { count: 'exact', head: true })
+    .eq('vendor_id', vendorId);
+
+  // Reviews worth 5 points each, splits worth 10 points each, capped at 100
+  const engagementScore = Math.min(100, (ratingCount * 5) + ((splitCount || 0) * 10));
+
+  // Final popularity: 40% rating + 60% engagement
+  const popularity = Math.round((ratingScore * 0.4) + (engagementScore * 0.6));
+
+  return Math.min(100, Math.max(0, popularity)); // Clamp to 0-100
+};
+
+/**
+ * Syncs rating_avg and rating_count for ALL vendors based on actual reviews.
+ * Use this to fix vendors with existing reviews that weren't synced.
+ */
+export const syncAllVendorRatings = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Get all vendors
+    const { data: vendors, error: vendorError } = await supabase.from('vendors').select('id');
+    if (vendorError) throw vendorError;
+
+    for (const vendor of vendors || []) {
+      // Get all reviews for this vendor
+      const { data: reviews } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('vendor_id', vendor.id);
+
+      if (reviews && reviews.length > 0) {
+        const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+        const avgRating = parseFloat((totalRating / reviews.length).toFixed(1));
+        await supabase.from('vendors').update({
+          rating_avg: avgRating,
+          rating_count: reviews.length
+        }).eq('id', vendor.id);
+      } else {
+        // No reviews, ensure it's set to 0
+        await supabase.from('vendors').update({
+          rating_avg: 0,
+          rating_count: 0
+        }).eq('id', vendor.id);
+      }
+    }
+
+    return { success: true, message: `Synced ratings for ${vendors?.length || 0} vendors.` };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+};
+
 export const api = {
   // USERS ENDPOINTS
   users: {
@@ -156,7 +226,20 @@ export const api = {
           .order('is_featured', { ascending: false })
           .order('sort_order', { ascending: true });
         if (error) throw error;
-        return { success: true, message: 'Fetched vendors.', data: data as Vendor[] };
+
+        // Calculate dynamic popularity for each vendor
+        const vendorsWithPopularity = await Promise.all(
+          (data || []).map(async (vendor: any) => {
+            const popularity = await calculatePopularity(
+              vendor.id,
+              vendor.rating_avg || 0,
+              vendor.rating_count || 0
+            );
+            return { ...vendor, popularity_score: popularity } as Vendor;
+          })
+        );
+
+        return { success: true, message: 'Fetched vendors.', data: vendorsWithPopularity };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -166,6 +249,17 @@ export const api = {
       try {
         const { data, error } = await supabase.from('vendors').select('*').eq('id', id).maybeSingle();
         if (error) throw error;
+
+        if (data) {
+          // Calculate dynamic popularity
+          const popularity = await calculatePopularity(
+            data.id,
+            data.rating_avg || 0,
+            data.rating_count || 0
+          );
+          return { success: true, message: 'Fetched vendor.', data: { ...data, popularity_score: popularity } as Vendor };
+        }
+
         return { success: true, message: 'Fetched vendor.', data: data as Vendor };
       } catch (error: any) {
         return { success: false, message: error.message };
@@ -207,6 +301,21 @@ export const api = {
         const { data: user } = await supabase.from('users').select('loyalty_points').eq('id', userId).single();
         if (user) {
           await supabase.from('users').update({ loyalty_points: (user.loyalty_points || 0) + 5 }).eq('id', userId);
+        }
+
+        // Recalculate vendor's rating_avg and rating_count
+        const { data: allReviews } = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('vendor_id', vendorId);
+
+        if (allReviews && allReviews.length > 0) {
+          const totalRating = allReviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+          const newAvg = parseFloat((totalRating / allReviews.length).toFixed(1));
+          await supabase.from('vendors').update({
+            rating_avg: newAvg,
+            rating_count: allReviews.length
+          }).eq('id', vendorId);
         }
 
         return { success: true, message: 'Review posted. +5 Loyalty Points!', data: data as Review };
@@ -300,8 +409,35 @@ export const api = {
 
     deleteReview: async (reviewId: string): Promise<GenericResponse<null>> => {
       try {
+        // Get vendor_id before deleting
+        const { data: review } = await supabase.from('reviews').select('vendor_id').eq('id', reviewId).single();
+
         const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
         if (error) throw error;
+
+        // Recalculate vendor's rating_avg and rating_count
+        if (review?.vendor_id) {
+          const { data: allReviews } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('vendor_id', review.vendor_id);
+
+          if (allReviews && allReviews.length > 0) {
+            const totalRating = allReviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+            const newAvg = parseFloat((totalRating / allReviews.length).toFixed(1));
+            await supabase.from('vendors').update({
+              rating_avg: newAvg,
+              rating_count: allReviews.length
+            }).eq('id', review.vendor_id);
+          } else {
+            // No reviews left, reset to 0
+            await supabase.from('vendors').update({
+              rating_avg: 0,
+              rating_count: 0
+            }).eq('id', review.vendor_id);
+          }
+        }
+
         return { success: true, message: 'Review deleted.' };
       } catch (error: any) {
         return { success: false, message: error.message };
