@@ -168,9 +168,14 @@ const VendorDetail: React.FC = () => {
     if (!vendor) return <div className="p-10 text-center dark:text-white">Vendor not found.</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-dark-900">
+        <div className="relative min-h-screen bg-gray-50 dark:bg-dark-900 overflow-hidden transition-colors duration-300">
+            {/* Glass Blob Background */}
+            <div className="absolute top-1/3 right-0 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-1/4 left-0 w-80 h-80 bg-accent-sky/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+
             {/* Header Image Area */}
-            <div className="relative h-64 md:h-80 w-full">
+            <div className="relative h-64 md:h-80 w-full z-10">
                 <img src={vendor.menu_image_urls?.[0] || vendor.logo_url} alt={vendor.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40"></div>
                 <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 to-transparent">
@@ -201,7 +206,7 @@ const VendorDetail: React.FC = () => {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-8">
+            <div className="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-8 relative z-10">
 
                 {/* Left: Details & Menu Info */}
                 <div className="md:col-span-2 space-y-6">
