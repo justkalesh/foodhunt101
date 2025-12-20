@@ -27,17 +27,44 @@ const recalculateVendorStats = async (vendorId: string) => {
     return;
   }
 
-  const prices = items.map((i: any) => i.price);
+  // Helper to get effective price from any available field
+  const getEffectivePrice = (item: any): number => {
+    // If regular price is set and > 0, use it
+    if (item.price && item.price > 0) return item.price;
+
+    // Otherwise check S/M/L prices and return the lowest available
+    const sizePrices = [item.small_price, item.medium_price, item.large_price]
+      .filter((p): p is number => p != null && p > 0);
+
+    if (sizePrices.length > 0) return Math.min(...sizePrices);
+
+    return 0;
+  };
+
+  // Get all valid prices (filter out zeros)
+  const prices = items.map(getEffectivePrice).filter((p: number) => p > 0);
+
+  if (prices.length === 0) {
+    await supabase.from('vendors').update({
+      lowest_item_price: 0,
+      avg_price_per_meal: 0,
+      recommended_item_name: null,
+      recommended_item_price: null
+    }).eq('id', vendorId);
+    return;
+  }
+
   const lowest = Math.min(...prices);
   const avg = Math.round(prices.reduce((a: number, b: number) => a + b, 0) / prices.length);
 
   const recommended = items.find((i: any) => i.is_recommended);
+  const recommendedPrice = recommended ? getEffectivePrice(recommended) : null;
 
   await supabase.from('vendors').update({
     lowest_item_price: lowest,
     avg_price_per_meal: avg,
     recommended_item_name: recommended?.name || null,
-    recommended_item_price: recommended?.price || null
+    recommended_item_price: recommendedPrice
   }).eq('id', vendorId);
 };
 
@@ -83,6 +110,9 @@ export const syncAllVendorRatings = async (): Promise<{ success: boolean; messag
     if (vendorError) throw vendorError;
 
     for (const vendor of vendors || []) {
+      // Recalculate menu item stats (lowest/avg prices) - handles S/M/L pricing
+      await recalculateVendorStats(vendor.id);
+
       // Get all reviews for this vendor
       const { data: reviews } = await supabase
         .from('reviews')
@@ -105,7 +135,7 @@ export const syncAllVendorRatings = async (): Promise<{ success: boolean; messag
       }
     }
 
-    return { success: true, message: `Synced ratings for ${vendors?.length || 0} vendors.` };
+    return { success: true, message: `Synced ratings & prices for ${vendors?.length || 0} vendors.` };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
