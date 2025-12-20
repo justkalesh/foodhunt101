@@ -3,8 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
-import { Search, MapPin, DollarSign, Star, Flame, Phone, Filter, X, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 
 const VendorList: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -14,7 +16,7 @@ const VendorList: React.FC = () => {
 
   // Filter & Sort States
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<string>(''); // 'avg_asc', 'avg_desc', 'cheapest_desc'
+  const [sortBy, setSortBy] = useState<string>('');
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
 
@@ -41,7 +43,6 @@ const VendorList: React.FC = () => {
     const fetch = async () => {
       const res = await api.vendors.getAll();
       if (res.success && res.data) {
-        // Only show active vendors
         const activeVendors = res.data.filter(v => v.is_active !== false);
         setVendors(activeVendors);
         setFiltered(activeVendors);
@@ -54,7 +55,6 @@ const VendorList: React.FC = () => {
   useEffect(() => {
     let res = [...vendors];
 
-    // 1. Text Search
     if (search) {
       const lower = search.toLowerCase();
       res = res.filter(v =>
@@ -64,44 +64,25 @@ const VendorList: React.FC = () => {
       );
     }
 
-    // 2. Location Filter
     if (selectedLocations.length > 0) {
       res = res.filter(v => selectedLocations.includes(v.location));
     }
 
-    // 3. Origin Filter
     if (selectedOrigins.length > 0) {
       res = res.filter(v => selectedOrigins.includes(v.origin_tag));
     }
 
-    // 4. Sorting
+    // Sorting
     if (sortBy === 'avg_asc') {
       res.sort((a, b) => a.avg_price_per_meal - b.avg_price_per_meal);
     } else if (sortBy === 'avg_desc') {
       res.sort((a, b) => b.avg_price_per_meal - a.avg_price_per_meal);
-    } else if (sortBy === 'cheapest_desc') {
-      res.sort((a, b) => b.lowest_item_price - a.lowest_item_price);
-    } else if (sortBy === 'cheapest_asc') {
-      res.sort((a, b) => a.lowest_item_price - b.lowest_item_price);
-    } else if (sortBy === 'recommended_high') {
-      res.sort((a, b) => (b.recommended_item_price || 0) - (a.recommended_item_price || 0));
-    } else if (sortBy === 'recommended_low') {
-      // Prioritize those THAT HAVE a price, then sort ASC
-      res.sort((a, b) => {
-        if (!a.recommended_item_price) return 1;
-        if (!b.recommended_item_price) return -1;
-        return a.recommended_item_price - b.recommended_item_price;
-      });
     } else if (sortBy === 'rating_high') {
       res.sort((a, b) => (b.rating_avg || 0) - (a.rating_avg || 0));
     } else if (sortBy === 'rating_low') {
-      res.sort((a, b) => {
-        // Put unrated (0/undefined) at bottom or top? Usually low to high means 1 star -> 5 stars.
-        // Let's treat undefined as 0.
-        return (a.rating_avg || 0) - (b.rating_avg || 0);
-      });
+      res.sort((a, b) => (a.rating_avg || 0) - (b.rating_avg || 0));
     } else {
-      // DEFAULT SORT: Featured first, then by Sort Order
+      // Default: Featured first
       res.sort((a, b) => {
         if (a.is_featured === b.is_featured) {
           return (a.sort_order || 999) - (b.sort_order || 999);
@@ -116,114 +97,184 @@ const VendorList: React.FC = () => {
   if (loading) return <PageLoading message="Loading campus vendors..." />;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Campus Food Spots</h2>
-        <div className="relative flex gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search by name, cuisine (e.g. North, Chinese)..."
-              className="w-full p-4 pl-12 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-dark-800 dark:text-white shadow-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            <Search className="absolute left-4 top-4 text-gray-400" />
-          </div>
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className="px-4 bg-white dark:bg-dark-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors flex items-center justify-center text-gray-700 dark:text-gray-200"
-          >
-            <Filter size={20} />
-          </button>
+    <div className="min-h-screen glass-card">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden border-b border-gray-100 dark:border-gray-800">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-accent-sky/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 relative z-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-medium mb-4">
+            <Sparkles size={14} />
+            Discover Campus Eats
+          </span>
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
+            Campus <span className="text-primary-600">Food Spots</span>
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-xl">
+            Explore every food vendor on campus. Filter by cuisine, price, and location.
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map(vendor => (
-          <Link to={`/vendors/${vendor.id}`} key={vendor.id} className="group block bg-gradient-to-br from-white to-orange-50/50 dark:bg-none dark:bg-dark-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1">
-            <div className="h-48 overflow-hidden relative">
-              <img src={vendor.logo_url || vendor.menu_image_urls?.[0]} alt={vendor.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-
-              <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                {vendor.is_featured && (
-                  <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1">
-                    <Star size={12} className="fill-current" /> Featured
-                  </span>
-                )}
-                <div className="bg-white dark:bg-dark-900 px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1 dark:text-white">
-                  <Star size={12} className="text-yellow-400 fill-current" /> {vendor.rating_avg || 'New'}
-                </div>
-              </div>
-
-              {vendor.rush_level === 'high' && (
-                <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold shadow flex items-center gap-1">
-                  <Flame size={12} /> Busy
-                </div>
-              )}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Search & Filter Bar */}
+        <div className="glass dark:glass-dark rounded-2xl p-4 mb-8 shadow-lg">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <Filter size={18} />
+              <span className="text-sm font-medium">Search</span>
             </div>
 
-            <div className="p-5">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex flex-col gap-1 flex-1 pr-2 min-w-0">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 truncate">{vendor.name}</h3>
-                  {vendor.recommended_item_name && (
-                    <div className="text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded inline-block border border-purple-100 dark:border-purple-800 self-start truncate max-w-full">
-                      Ref: {vendor.recommended_item_name} {vendor.recommended_item_price ? `(₹${vendor.recommended_item_price})` : ''}
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search by name, cuisine..."
+                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-500 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFilterOpen(true)}
+              leftIcon={<Filter size={16} />}
+              className="!bg-white dark:!bg-slate-700 border border-gray-200 dark:border-gray-500"
+            >
+              Filters
+            </Button>
+
+            {(search || selectedLocations.length > 0 || selectedOrigins.length > 0) && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Vendor Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((vendor, idx) => (
+            <Link
+              to={`/vendors/${vendor.id}`}
+              key={vendor.id}
+              className="stagger-item group"
+              style={{ animationDelay: `${idx * 0.05}s` }}
+            >
+              <Card variant="default" className="h-full overflow-hidden">
+                {/* Gradient blob decoration */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-primary-500/10 transition-all" />
+
+                {/* Image Section */}
+                <div className="h-44 -mx-6 -mt-6 mb-4 overflow-hidden relative">
+                  <img
+                    src={vendor.logo_url || vendor.menu_image_urls?.[0]}
+                    alt={vendor.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+
+                  {/* Badges */}
+                  <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+                    {vendor.is_featured && (
+                      <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+                        <Star size={12} className="fill-current" /> Featured
+                      </span>
+                    )}
+                    <span className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 text-gray-900 dark:text-white">
+                      <Star size={12} className="text-yellow-400 fill-current" />
+                      {vendor.rating_avg ? vendor.rating_avg.toFixed(1) : 'New'}
+                    </span>
+                  </div>
+
+                  {/* Rush Level Badge */}
+                  {vendor.rush_level === 'high' && (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+                      <Flame size={12} /> Busy Now
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap">
-                    Min ₹{vendor.lowest_item_price}
-                  </span>
-                  <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded font-semibold whitespace-nowrap border border-blue-100 dark:border-blue-800">
-                    Avg ₹{vendor.avg_price_per_meal}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 line-clamp-2">{vendor.description}</p>
-
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span className="px-2 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs rounded-md border border-primary-100 dark:border-primary-800">
-                  {vendor.origin_tag}
-                </span>
-                <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-md">
-                  {vendor.cuisine}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-gray-400 text-sm border-t dark:border-gray-700 pt-3">
-                <div className="flex items-center">
-                  <MapPin size={14} className="mr-1" /> {vendor.location}
-                </div>
-                {vendor.contact_number && (
-                  <div className="flex items-center">
-                    <Phone size={14} className="mr-1" /> {vendor.contact_number}
+                {/* Content */}
+                <div className="relative z-10">
+                  {/* Header Row */}
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate">
+                      {vendor.name}
+                    </h3>
+                    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm">
+                      <MapPin size={12} />
+                      <span className="truncate">{vendor.location}</span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
 
-      {filtered.length === 0 && (
-        <div className="text-center py-20 text-gray-500 dark:text-gray-400">
-          No vendors found. Try a different search!
+                  {/* Price & Tags */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-medium">
+                        From
+                      </span>
+                      <span className="text-xl font-extrabold text-gray-900 dark:text-white">
+                        ₹{vendor.lowest_item_price}
+                      </span>
+                    </div>
+                    <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                      {vendor.origin_tag}
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4">
+                    {vendor.description}
+                  </p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Avg: <span className="font-semibold text-gray-700 dark:text-gray-200">₹{vendor.avg_price_per_meal}</span>
+                    </span>
+                    {vendor.contact_number && (
+                      <div className="flex items-center gap-1 text-gray-400 text-xs">
+                        <Phone size={12} />
+                        <span>{vendor.contact_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
         </div>
-      )}
+
+        {/* Empty State */}
+        {filtered.length === 0 && (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Search size={32} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No vendors found</h3>
+            <p className="text-gray-500 dark:text-gray-400">Try a different search or clear your filters.</p>
+          </div>
+        )}
+      </div>
 
       {/* Filter Modal */}
       {isFilterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-dark-900 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-            <div className="p-5 border-b dark:border-gray-800 flex justify-between items-center sticky top-0 bg-white dark:bg-dark-900 z-10">
+          <div className="glass dark:glass-dark rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm z-10 rounded-t-2xl">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Filters</h3>
-              <button onClick={() => setIsFilterOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-dark-800 rounded-full transition-colors">
-                <X size={24} className="text-gray-500" />
+              <button onClick={() => setIsFilterOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                <X size={20} className="text-gray-500" />
               </button>
             </div>
 
@@ -233,23 +284,18 @@ const VendorList: React.FC = () => {
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Sort By</h4>
                 <div className="space-y-2">
                   {[
-                    { label: 'Avg Price: Low to High', value: 'avg_asc' },
-                    { label: 'Avg Price: High to Low', value: 'avg_desc' },
-                    { label: 'Cheapest Item: High to Low', value: 'cheapest_desc' },
-                    { label: 'Cheapest Item: Low to High', value: 'cheapest_asc' },
-                    { label: 'Recommended: High to Low', value: 'recommended_high' },
-                    { label: 'Recommended: Low to High', value: 'recommended_low' },
+                    { label: 'Price: Low to High', value: 'avg_asc' },
+                    { label: 'Price: High to Low', value: 'avg_desc' },
                     { label: 'Rating: High to Low', value: 'rating_high' },
                     { label: 'Rating: Low to High', value: 'rating_low' },
                   ].map((option) => (
-                    <label key={option.value} className="flex items-center gap-3 p-3 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-dark-800 cursor-pointer transition-colors">
+                    <label key={option.value} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
                       <input
                         type="radio"
                         name="sort"
                         className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                         checked={sortBy === option.value}
                         onChange={() => setSortBy(option.value)}
-                        onClick={() => sortBy === option.value && setSortBy('')} // Allow toggle off
                       />
                       <span className="text-gray-700 dark:text-gray-300">{option.label}</span>
                     </label>
@@ -265,9 +311,9 @@ const VendorList: React.FC = () => {
                     <button
                       key={loc}
                       onClick={() => toggleSelection(selectedLocations, loc, setSelectedLocations)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${selectedLocations.includes(loc)
+                      className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${selectedLocations.includes(loc)
                         ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                        : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
+                        : 'bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                         }`}
                     >
                       {loc}
@@ -284,9 +330,9 @@ const VendorList: React.FC = () => {
                     <button
                       key={origin}
                       onClick={() => toggleSelection(selectedOrigins, origin, setSelectedOrigins)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${selectedOrigins.includes(origin)
+                      className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${selectedOrigins.includes(origin)
                         ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-500 text-primary-700 dark:text-primary-300'
-                        : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
+                        : 'bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                         }`}
                     >
                       {origin}
@@ -296,19 +342,13 @@ const VendorList: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-5 border-t dark:border-gray-800 sticky bottom-0 bg-white dark:bg-dark-900 z-10 flex gap-3">
-              <button
-                onClick={clearFilters}
-                className="flex-1 py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
-              >
+            <div className="p-5 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm z-10 flex gap-3 rounded-b-2xl">
+              <Button variant="ghost" className="flex-1" onClick={clearFilters}>
                 Clear All
-              </button>
-              <button
-                onClick={() => setIsFilterOpen(false)}
-                className="flex-1 py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold shadow-lg shadow-primary-500/30 transition-all hover:scale-[1.02]"
-              >
+              </Button>
+              <Button className="flex-1" onClick={() => setIsFilterOpen(false)}>
                 Apply Filters
-              </button>
+              </Button>
             </div>
           </div>
         </div>
