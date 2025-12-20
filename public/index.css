@@ -1,3 +1,409 @@
-/* Entry point for styles. 
-   Tailwind is loaded via CDN in index.html. 
-   This file exists to satisfy the build system and html link. */
+/* Food-Hunt Design System - Modern Campus Aesthetic
+   Glassmorphism, Animations & Premium Styling */
+
+/* ============================================
+   GLOBAL THEME TRANSITION
+   ============================================ */
+
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+}
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+
+@keyframes staggerFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes progressFill {
+  0% {
+    stroke-dashoffset: 100;
+  }
+
+  100% {
+    stroke-dashoffset: var(--progress-offset, 0);
+  }
+}
+
+@keyframes ticketPunch {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* ============================================
+   STAGGER ANIMATION CLASSES
+   ============================================ */
+
+.stagger-item {
+  opacity: 0;
+  animation: staggerFadeIn 0.5s ease-out forwards;
+}
+
+.stagger-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.stagger-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.stagger-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.stagger-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.stagger-item:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+.stagger-item:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+.stagger-item:nth-child(7) {
+  animation-delay: 0.35s;
+}
+
+.stagger-item:nth-child(8) {
+  animation-delay: 0.4s;
+}
+
+.stagger-item:nth-child(9) {
+  animation-delay: 0.45s;
+}
+
+.stagger-item:nth-child(10) {
+  animation-delay: 0.5s;
+}
+
+.stagger-item:nth-child(11) {
+  animation-delay: 0.55s;
+}
+
+.stagger-item:nth-child(12) {
+  animation-delay: 0.6s;
+}
+
+/* ============================================
+   GLASSMORPHISM UTILITIES
+   ============================================ */
+
+.glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 247, 237, 0.8) 100%);
+}
+
+.dark .glass-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.8) 100%);
+}
+
+/* ============================================
+   NOISE TEXTURE BACKGROUND
+   ============================================ */
+
+.noise-bg {
+  position: relative;
+}
+
+.noise-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .noise-bg::before {
+  opacity: 0.05;
+}
+
+/* ============================================
+   TICKET / BOARDING PASS STYLING
+   ============================================ */
+
+.ticket-card {
+  position: relative;
+  background: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.dark .ticket-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.ticket-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  border-top: 2px dashed rgba(249, 115, 22, 0.3);
+}
+
+.ticket-punch-left,
+.ticket-punch-right {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background: #f8fafc;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.dark .ticket-punch-left,
+.dark .ticket-punch-right {
+  background: #0f172a;
+}
+
+.ticket-punch-left {
+  left: -8px;
+}
+
+.ticket-punch-right {
+  right: -8px;
+}
+
+/* ============================================
+   PROGRESS RING (SVG)
+   ============================================ */
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.5s ease-out;
+  transform-origin: 50% 50%;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(249, 115, 22, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(249, 115, 22, 0.5);
+}
+
+/* ============================================
+   HOVER LIFT EFFECT
+   ============================================ */
+
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+}
+
+.dark .hover-lift:hover {
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   BUTTON SHIMMER EFFECT
+   ============================================ */
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-shimmer:hover::after {
+  opacity: 1;
+}
+
+/* ============================================
+   HERO PATTERN BACKGROUND
+   ============================================ */
+
+.hero-pattern {
+  background-color: #fff7ed;
+  background-image:
+    radial-gradient(at 40% 20%, rgba(249, 115, 22, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(163, 230, 53, 0.08) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(249, 115, 22, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+}
+
+.dark .hero-pattern {
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(at 40% 20%, rgba(249, 115, 22, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(14, 165, 233, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(163, 230, 53, 0.05) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(14, 165, 233, 0.12) 0px, transparent 50%);
+}
+
+/* ============================================
+   FLOATING FILTER BAR
+   ============================================ */
+
+.filter-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 40;
+  transition: all 0.3s ease;
+}
+
+.filter-bar.is-sticky {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dark .filter-bar.is-sticky {
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   SLOT DOTS INDICATOR
+   ============================================ */
+
+.slot-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.slot-dot.filled {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+}
+
+.slot-dot.empty {
+  background: #e2e8f0;
+  border: 2px solid #cbd5e1;
+}
+
+.dark .slot-dot.empty {
+  background: #334155;
+  border-color: #475569;
+}
+
+/* ============================================
+   INPUT FOCUS STATES
+   ============================================ */
+
+.input-modern {
+  transition: all 0.2s ease;
+}
+
+.input-modern:focus {
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+}
+
+/* ============================================
+   CARD CHIP DECORATION
+   ============================================ */
+
+.card-chip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 28px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 4px;
+  opacity: 0.8;
+}
+
+.card-chip::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}

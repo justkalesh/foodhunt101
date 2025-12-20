@@ -5,6 +5,7 @@ import { api, syncAllVendorRatings } from '../services/mockDatabase';
 import { UserRole } from '../types';
 import { seedDatabase } from '../services/seeder';
 import { Shield, Users, Store, Star, ArrowRight, Database, RefreshCw } from 'lucide-react';
+import { PageLoading } from '../components/ui/LoadingSpinner';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -45,7 +46,7 @@ const AdminDashboard: React.FC = () => {
         setLoading(false);
     };
 
-    if (loading) return <div className="p-10 text-center dark:text-white">Loading Dashboard...</div>;
+    if (loading) return <PageLoading message="Loading admin dashboard..." />;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-900 px-4 py-8">

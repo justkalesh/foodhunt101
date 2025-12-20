@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../services/mockDatabase';
 import { User, Review, MealSplit, UserRole } from '../types';
 import { User as UserIcon, Settings, Star, Utensils, Award, Edit3, Save, Sun, Moon, Monitor, CheckCircle, MessageCircle } from 'lucide-react';
+import { PageLoading } from '../components/ui/LoadingSpinner';
 
 const Profile: React.FC = () => {
    const { user, logout, updateUser } = useAuth();
@@ -98,7 +99,7 @@ const Profile: React.FC = () => {
       return { name: 'Bronze Member', color: 'text-orange-700', bg: 'bg-orange-100', icon: <Award size={20} className="fill-current" /> };
    };
 
-   if (loading) return <div className="p-10 text-center dark:text-white">Loading profile...</div>;
+   if (loading) return <PageLoading message="Loading profile..." />;
    if (!displayUser) return <div className="p-10 text-center dark:text-white">User not found.</div>;
 
    const badge = getLoyaltyBadge(displayUser.loyalty_points || 0);

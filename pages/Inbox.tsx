@@ -7,6 +7,7 @@ import { Send, Search, MoreVertical, ArrowLeft, Trash2, X, CheckSquare, Square, 
 import ConfirmationModal from '../components/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../services/supabase';
+import { PageLoading } from '../components/ui/LoadingSpinner';
 
 // ==========================================
 // SQL REQUIREMENTS FOR REALTIME CHAT
@@ -418,11 +419,7 @@ const Inbox: React.FC = () => {
     };
 
     // --- Render ---
-    if (loading) return (
-        <div className="flex justify-center items-center h-screen bg-white dark:bg-gray-900">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-    );
+    if (loading) return <PageLoading message="Loading inbox..." />;
 
     const activeConversation = conversations.find(c => c.id === activeChatId);
     let displayInfo = activeConversation ? getConversationInfo(activeConversation) : null;

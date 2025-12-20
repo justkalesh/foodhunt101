@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
 import { Search, MapPin, DollarSign, Star, Flame, Phone, Filter, X, ChevronDown } from 'lucide-react';
+import { PageLoading } from '../components/ui/LoadingSpinner';
 
 const VendorList: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -112,7 +113,7 @@ const VendorList: React.FC = () => {
     setFiltered(res);
   }, [search, vendors, sortBy, selectedLocations, selectedOrigins]);
 
-  if (loading) return <div className="p-10 text-center dark:text-white animate-pulse">Loading campus vendors...</div>;
+  if (loading) return <PageLoading message="Loading campus vendors..." />;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
