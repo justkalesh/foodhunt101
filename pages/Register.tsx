@@ -39,7 +39,12 @@ const Register: React.FC = () => {
     if (res.success) {
       navigate('/');
     } else {
-      setError(res.message);
+      // Check if email already exists - silently redirect to login with email pre-filled
+      if (res.message && res.message.toLowerCase().includes('already registered')) {
+        navigate('/login', { state: { email: formData.email } });
+      } else {
+        setError(res.message);
+      }
     }
   };
 

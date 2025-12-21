@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 
 const Login: React.FC = () => {
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
   const { login, signInWithGoogle, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Pre-fill email if coming from Register page
+  useEffect(() => {
+    const state = location.state as { email?: string } | null;
+    if (state?.email) {
+      setEmail(state.email);
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
