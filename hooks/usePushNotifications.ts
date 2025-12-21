@@ -13,23 +13,41 @@ export const usePushNotifications = () => {
 
     const requestPermission = async () => {
         try {
+            // Check if push notifications are supported
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.log('Push notifications not supported in this browser');
+                return;
+            }
+
             const permission = await Notification.requestPermission();
             setPermissionStatus(permission);
             if (permission === 'granted') {
-                // Get Token
+                // Get existing service worker registration (from VitePWA)
+                const registration = await navigator.serviceWorker.ready;
+
+                // Check if pushManager is available (requires HTTPS)
+                if (!registration.pushManager) {
+                    console.log('Push notifications require HTTPS. Skipping token registration.');
+                    return;
+                }
+
+                // Get Token using the existing service worker
                 const currentToken = await getToken(messaging, {
-                    vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
+                    vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                    serviceWorkerRegistration: registration
                 });
 
                 if (currentToken) {
                     setToken(currentToken);
                     // Save token to Supabase
-                    const { error } = await supabase
-                        .from('users')
-                        .update({ fcm_token: currentToken })
-                        .eq('id', user.id);
+                    if (user) {
+                        const { error } = await supabase
+                            .from('users')
+                            .update({ fcm_token: currentToken })
+                            .eq('id', user.id);
 
-                    if (error) console.error('Error saving FCM token:', error);
+                        if (error) console.error('Error saving FCM token:', error);
+                    }
                 } else {
                     console.log('No registration token available. Request permission to generate one.');
                 }

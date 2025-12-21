@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { UserRole } from '../types';
@@ -10,7 +11,9 @@ const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [showLoginModal, setShowLoginModal] = React.useState(false);
 
   const isActive = (path: string) => location.pathname === path ? 'text-primary-600 dark:text-primary-500 font-bold' : 'text-gray-600 dark:text-gray-300 hover:text-primary-500';
 
@@ -50,7 +53,16 @@ const Navbar: React.FC = () => {
           <div className="hidden md:flex md:items-center md:space-x-8">
             <Link to="/vendors" className={isActive('/vendors')}>Vendors</Link>
             <Link to="/splits" className={isActive('/splits')}>Meal Splits</Link>
-            {user && <Link to="/inbox" className={isActive('/inbox')}>Inbox</Link>}
+            <Link
+              to="/inbox"
+              className={isActive('/inbox')}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  setShowLoginModal(true);
+                }
+              }}
+            >Inbox</Link>
 
             {user?.role === UserRole.ADMIN && (
               <Link to="/admin" className={`${isActive('/admin')} flex items-center gap-1 text-primary-600 font-bold`}>
@@ -108,7 +120,17 @@ const Navbar: React.FC = () => {
           <div className="pt-2 pb-3 space-y-1 px-4">
             <Link to="/vendors" className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-200">Vendors</Link>
             <Link to="/splits" className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-200">Meal Splits</Link>
-            {user && <Link to="/inbox" className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-200">Inbox</Link>}
+            <Link
+              to="/inbox"
+              className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-200"
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  setShowLoginModal(true);
+                  setIsMobileMenuOpen(false);
+                }
+              }}
+            >Inbox</Link>
             {user?.role === UserRole.ADMIN && (
               <Link to="/admin" className="block px-3 py-2 text-base font-medium text-red-500">Admin Dashboard</Link>
             )}
@@ -127,6 +149,15 @@ const Navbar: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onConfirm={() => { setShowLoginModal(false); navigate('/login'); }}
+        title="Login Required"
+        message="Please sign in to access your inbox and chat with other foodies."
+        confirmText="Sign In"
+      />
     </nav>
   );
 };

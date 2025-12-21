@@ -35,7 +35,7 @@ import { PageLoading } from '../components/ui/LoadingSpinner';
 // ==========================================
 
 const Inbox: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isEmailVerified } = useAuth();
     const { permissionStatus, requestPermission } = usePushNotifications();
     const navigate = useNavigate();
     const location = useLocation();
@@ -521,8 +521,8 @@ const Inbox: React.FC = () => {
                                     key={conv.id}
                                     onClick={() => isSelectionMode ? toggleChatSelection(conv.id) : activeChatId !== conv.id && (setActiveChatId(conv.id), setActiveMessages([]))}
                                     className={`flex items-center gap-3 p-4 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800 ${activeChatId === conv.id && !isSelectionMode
-                                            ? 'bg-primary-50 dark:bg-primary-900/10 border-l-4 border-l-primary-500'
-                                            : 'hover:bg-gray-50 dark:hover:bg-slate-800/50 border-l-4 border-l-transparent'
+                                        ? 'bg-primary-50 dark:bg-primary-900/10 border-l-4 border-l-primary-500'
+                                        : 'hover:bg-gray-50 dark:hover:bg-slate-800/50 border-l-4 border-l-transparent'
                                         }`}
                                 >
                                     {isSelectionMode && (
@@ -592,8 +592,8 @@ const Inbox: React.FC = () => {
                                         )}
                                         <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 shadow-md text-sm ${isMe
-                                                    ? 'bg-gradient-to-r from-primary-600 to-orange-500 text-white rounded-tr-none'
-                                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
+                                                ? 'bg-gradient-to-r from-primary-600 to-orange-500 text-white rounded-tr-none'
+                                                : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
                                                 }`}>
                                                 <div className="break-words">{renderMessageContent(msg.content, isMe)}</div>
                                                 {/* Request Buttons (Simplified) */}
@@ -630,12 +630,13 @@ const Inbox: React.FC = () => {
                                     ref={inputRef}
                                     value={inputText}
                                     onChange={handleInputChange}
-                                    placeholder="Type a message..."
-                                    className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-full px-6 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 border border-transparent focus:border-primary-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
+                                    placeholder={isEmailVerified ? "Type a message..." : "Please verify your email to send messages."}
+                                    disabled={!isEmailVerified}
+                                    className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-full px-6 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 border border-transparent focus:border-primary-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
-                                <button type="submit" disabled={!inputText.trim()} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${inputText.trim()
-                                        ? 'bg-gradient-to-r from-primary-600 to-orange-500 text-white hover:shadow-primary-500/30 hover:scale-105'
-                                        : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500'
+                                <button type="submit" disabled={!inputText.trim() || !isEmailVerified} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${inputText.trim() && isEmailVerified
+                                    ? 'bg-gradient-to-r from-primary-600 to-orange-500 text-white hover:shadow-primary-500/30 hover:scale-105'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500'
                                     }`}>
                                     <Send size={20} />
                                 </button>

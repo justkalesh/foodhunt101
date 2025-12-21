@@ -10,6 +10,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { PageLoading } from '../components/ui/LoadingSpinner';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // ============================================
@@ -454,14 +455,14 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
 
             {/* Time & Location */}
             <div className="text-right">
-              <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 justify-end">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 justify-end">
                 <Clock size={14} className="text-primary-500" />
                 {split.time_note}
               </div>
               {vendor && (
-                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 justify-end mt-1">
-                  <MapPin size={10} />
-                  {vendor.location}
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 justify-end mt-1.5">
+                  <MapPin size={12} className="text-gray-400 dark:text-gray-500" />
+                  <span className="truncate max-w-[140px]">{vendor.location}</span>
                 </div>
               )}
             </div>
@@ -541,7 +542,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
 // MAIN COMPONENT
 // ============================================
 const MealSplits: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isEmailVerified } = useAuth();
   const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();
   const [splits, setSplits] = useState<MealSplit[]>([]);
@@ -550,6 +551,7 @@ const MealSplits: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Filter states
   const [filterVendor, setFilterVendor] = useState('');
@@ -628,8 +630,7 @@ const MealSplits: React.FC = () => {
 
   const handleRequestJoin = async (id: string) => {
     if (!user) {
-      alert("Please sign in to join a split.");
-      navigate('/login');
+      setShowAuthModal(true);
       return;
     }
     const res = await api.splits.requestJoin(id, user.id);
@@ -702,6 +703,11 @@ const MealSplits: React.FC = () => {
   const handleCreate = (dish: string, vendorId: string, vendorName: string, price: number, people: number, timeNote: string, splitTime: string) => {
     if (!user) {
       navigate('/login');
+      return;
+    }
+
+    if (!isEmailVerified) {
+      alert("Please verify your email address to create a split.");
       return;
     }
 
@@ -827,7 +833,7 @@ const MealSplits: React.FC = () => {
             <Button
               size="sm"
               onClick={() => {
-                if (!user) navigate('/login');
+                if (!user) setShowAuthModal(true);
                 else setIsModalOpen(true);
               }}
               leftIcon={<PlusCircle size={18} />}
@@ -885,7 +891,7 @@ const MealSplits: React.FC = () => {
                 </p>
                 <Button
                   onClick={() => {
-                    if (!user) navigate('/login');
+                    if (!user) setShowAuthModal(true);
                     else setIsModalOpen(true);
                   }}
                   leftIcon={<PlusCircle size={20} />}
@@ -1009,6 +1015,15 @@ const MealSplits: React.FC = () => {
           vendors={vendors}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onConfirm={() => { setShowAuthModal(false); navigate('/login'); }}
+        title="Authentication Required"
+        message="You need to be signed in to join or create meal splits."
+        confirmText="Sign In"
+      />
     </div>
   );
 };

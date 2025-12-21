@@ -20,7 +20,21 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.png', 'index.css'],
+        includeAssets: ['logo.png', 'index.css', 'firebase-messaging-sw.js'],
+        workbox: {
+          // Import Firebase messaging into the PWA service worker
+          importScripts: ['https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
+              }
+            }
+          ]
+        },
         manifest: {
           name: 'Food-Hunt',
           short_name: 'FoodHunt',

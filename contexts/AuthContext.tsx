@@ -9,6 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   needsCompletion: boolean; // New flag
+  isEmailVerified: boolean;
   login: (email: string, pass: string) => Promise<AuthResponse>;
   signup: (data: any) => Promise<AuthResponse>;
   signInWithGoogle: () => Promise<any>;
@@ -23,15 +24,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsCompletion, setNeedsCompletion] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   useEffect(() => {
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        setIsEmailVerified(!!session.user.email_confirmed_at);
         fetchProfile(session.user.id);
       } else {
         setUser(null);
         setNeedsCompletion(false);
+        setIsEmailVerified(false);
         setIsLoading(false);
       }
     });
@@ -39,10 +43,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth State Change:", event, session?.user?.id);
       if (session?.user) {
+        setIsEmailVerified(!!session.user.email_confirmed_at);
         fetchProfile(session.user.id);
       } else {
         setUser(null);
         setNeedsCompletion(false);
+        setIsEmailVerified(false);
         setIsLoading(false);
       }
     });
@@ -75,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await api.users.getMe(data.user.id);
       if (res.success && res.data) {
         setUser(res.data);
+        setIsEmailVerified(!!data.user.email_confirmed_at);
         return { success: true, message: 'Login successful.', token: data.session?.access_token, user: res.data };
       }
       return { success: false, message: 'User profile not found.' };
@@ -232,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, needsCompletion, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, needsCompletion, isEmailVerified, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

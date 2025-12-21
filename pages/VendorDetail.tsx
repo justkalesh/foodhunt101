@@ -158,28 +158,33 @@ const VendorDetail: React.FC = () => {
     const [scrollY, setScrollY] = useState(0);
     const heroRef = useRef<HTMLDivElement>(null);
 
+    // Scroll handler to toggle floating action bar attribute safely
     useEffect(() => {
-        const handleScroll = () => setScrollY(window.scrollY);
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            setScrollY(currentScrollY);
+
+            // Logic: Show floating bar only on mobile when scrolled down
+            const isMobile = window.innerWidth < 768;
+            const shouldShow = currentScrollY > 200 && isMobile;
+
+            if (shouldShow) {
+                document.body.setAttribute('data-floating-bar', 'true');
+            } else {
+                document.body.removeAttribute('data-floating-bar');
+            }
+        };
+
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    // Set data attribute on body when floating action bar is visible (for chatbot positioning)
-    useEffect(() => {
-        const isFloatingBarVisible = scrollY > 200;
-        // Only apply on mobile (md breakpoint is 768px)
-        const isMobile = window.innerWidth < 768;
-
-        if (isFloatingBarVisible && isMobile) {
-            document.body.setAttribute('data-floating-bar', 'true');
-        } else {
-            document.body.removeAttribute('data-floating-bar');
-        }
+        // Check immediately on mount
+        handleScroll();
 
         return () => {
+            window.removeEventListener('scroll', handleScroll);
+            // CRITICAL: Cleanup attribute on unmount to prevent UI bugs
             document.body.removeAttribute('data-floating-bar');
         };
-    }, [scrollY]);
+    }, []);
 
     useEffect(() => {
         if (showMenuModal) setCurrentImageIndex(0);
