@@ -356,7 +356,7 @@ export const api = {
 
     getMenuItems: async (vendorId: string): Promise<GenericResponse<MenuItem[]>> => {
       try {
-        const { data, error } = await supabase.from('menu_items').select('*').eq('vendor_id', vendorId).order('name', { ascending: true });
+        const { data, error } = await supabase.from('menu_items').select('*').eq('vendor_id', vendorId).order('category', { ascending: true, nullsFirst: false }).order('name', { ascending: true });
         if (error) throw error;
         return { success: true, message: 'Fetched menu items.', data: data as MenuItem[] };
       } catch (error: any) {
