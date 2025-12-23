@@ -6,6 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Food-Hunt</title>
   <link rel="icon" type="image/png" href="/logo.png" />
+
+  <!-- Instagram/WebView detection - runs FIRST before any external scripts -->
+  <script>
+    (function () {
+      var ua = navigator.userAgent || navigator.vendor || window.opera || '';
+      window.__isInAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|FB4A|FBIOS/i.test(ua);
+    })();
+  </script>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -125,35 +134,42 @@
   <div id="root"></div>
 
   <script>
-      // Detect Instagram/Facebook in-app browser
+      // Handle Instagram/Facebook in-app browser fallback
       (function () {
-        var ua = navigator.userAgent || navigator.vendor || window.opera;
-        var isInAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|FB4A|FBIOS/i.test(ua);
+        var isInAppBrowser = window.__isInAppBrowser;
 
         // Set the "Open in Browser" link
         var link = document.getElementById('open-browser-btn');
         if (link) {
-          link.href = window.location.href;
-          // For iOS, use special intent
-          if (/iPhone|iPad|iPod/i.test(ua)) {
-            link.href = 'x-safari-' + window.location.href;
+          var url = window.location.href;
+          link.href = url;
+          // For iOS, try to open in Safari
+          if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            link.href = 'x-safari-' + url;
           }
         }
 
-        // Show fallback after timeout if app doesn't load
-        var timeout = setTimeout(function () {
-          var root = document.getElementById('root');
-          if (!root || root.innerHTML.trim() === '') {
-            document.getElementById('fallback').style.display = 'block';
-          }
-        }, isInAppBrowser ? 2000 : 5000);
+        // For Instagram users: show fallback quickly if app doesn't load
+        if (isInAppBrowser) {
+          var fallbackShown = false;
+          var timeout = setTimeout(function () {
+            var root = document.getElementById('root');
+            if (!root || root.innerHTML.trim() === '') {
+              document.getElementById('fallback').style.display = 'block';
+              fallbackShown = true;
+            }
+          }, 1500); // Show after 1.5 seconds if nothing rendered
 
-        // Clear timeout if app loads successfully
-        window.__clearFallback = function () { clearTimeout(timeout); };
+          window.__hideFallback = function () {
+            clearTimeout(timeout);
+            if (fallbackShown) {
+              document.getElementById('fallback').style.display = 'none';
+            }
+          };
+        }
 
-        // Global error handler
-        window.onerror = function (msg, url, line, col, error) {
-          console.error('App Error:', msg);
+        // Global error handler for Instagram
+        window.onerror = function (msg) {
           if (isInAppBrowser) {
             document.getElementById('fallback').style.display = 'block';
           }

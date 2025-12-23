@@ -5,7 +5,8 @@ import App from './App';
 // Type declaration for custom window property
 declare global {
   interface Window {
-    __clearFallback?: () => void;
+    __hideFallback?: () => void;
+    __isInAppBrowser?: boolean;
   }
 }
 
@@ -21,7 +22,7 @@ root.render(
   </React.StrictMode>
 );
 
-// Clear the fallback UI timeout since app loaded successfully
-if (typeof window.__clearFallback === 'function') {
-  window.__clearFallback();
+// Hide fallback UI since app loaded successfully
+if (typeof window.__hideFallback === 'function') {
+  window.__hideFallback();
 }
