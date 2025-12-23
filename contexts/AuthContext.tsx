@@ -129,10 +129,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Welcome Message
       try {
-        // ensure system user exists or handle implicitly? Supabase won't have system user by default.
-        // We might skipping this or need to seed system user.
-        // Let's try sending.
-        await api.messages.send('foodhunt101lpu@gmail.com', newUser.id, `Welcome to Food Hunt!`);
+        // Resolve admin email to user ID first
+        const adminRes = await api.users.search('foodhunt101lpu@gmail.com');
+        if (adminRes.success && adminRes.data) {
+          await api.messages.send(adminRes.data.id, newUser.id, `Welcome to Food Hunt! 🍕\n\nWe're thrilled to have you join our campus food community. Start exploring vendors, join meal splits, and save money while making new friends!\n\nHappy eating!`);
+        }
       } catch (e) {
         console.log("Welcome msg check failed or ignored", e);
       }
@@ -168,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setUser(newUser);
+      setNeedsCompletion(false); // Ensure no redirect to complete-profile after successful signup
       return { success: true, message: 'Signup successful.', token: authData.session?.access_token, user: newUser };
 
     } catch (error: any) {
@@ -211,7 +213,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Welcome Message
       try {
-        await api.messages.send('foodhunt101lpu@gmail.com', newUser.id, `Welcome to Food Hunt!`);
+        // Resolve admin email to user ID first
+        const adminRes = await api.users.search('foodhunt101lpu@gmail.com');
+        if (adminRes.success && adminRes.data) {
+          await api.messages.send(adminRes.data.id, newUser.id, `Welcome to Food Hunt! 🍕\n\nWe're thrilled to have you join our campus food community. Start exploring vendors, join meal splits, and save money while making new friends!\n\nHappy eating!`);
+        }
       } catch (e) {
         console.log("Welcome msg check failed or ignored", e);
       }
