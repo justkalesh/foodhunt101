@@ -80,8 +80,8 @@ const SlotDots: React.FC<SlotDotsProps> = ({ filled, total }) => {
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
-          className={`slot - dot ${i < filled ? 'filled' : 'empty'} `}
-          style={{ animationDelay: `${i * 0.1} s` }}
+          className={`slot-dot ${i < filled ? 'filled' : 'empty'}`}
+          style={{ animationDelay: `${i * 0.1}s` }}
         />
       ))}
     </div>

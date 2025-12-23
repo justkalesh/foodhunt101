@@ -290,7 +290,7 @@ export const api = {
           return { success: true, message: 'Fetched vendor.', data: { ...data, popularity_score: popularity } as Vendor };
         }
 
-        return { success: true, message: 'Fetched vendor.', data: data as Vendor };
+        return { success: false, message: 'Vendor not found.' };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -610,7 +610,7 @@ export const api = {
           request_id: request.id
         });
 
-        // Update conversation last_msessage
+        // Update conversation last_message
         await supabase.from('conversations').update({
           last_message: { content, sender_id: userId, created_at: new Date().toISOString(), is_read: false },
           updated_at: new Date().toISOString()
@@ -915,18 +915,13 @@ export const api = {
 
     getChat: async (conversationId: string): Promise<GenericResponse<Message[]>> => {
       try {
-        console.log(`[DEBUG] fetching chat for: ${conversationId}`);
         const { data, error } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
           .order('created_at', { ascending: true }); // Chronological
 
-        if (error) {
-          console.error('[DEBUG] Supabase error:', error);
-          throw error;
-        }
-        console.log(`[DEBUG] fetched ${data?.length} messages`);
+        if (error) throw error;
 
         // Fetch statuses for any request_ids
         const messages = data as Message[];
@@ -941,7 +936,7 @@ export const api = {
 
           messages.forEach(m => {
             if (m.request_id) {
-              m.request_status = statusMap[m.request_id] || 'pending'; // invalid id -> pending or error?
+              m.request_status = statusMap[m.request_id] || 'pending';
             }
           });
         }

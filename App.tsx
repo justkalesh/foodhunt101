@@ -20,6 +20,7 @@ import AdminVendors from './pages/AdminVendors';
 import AdminUsers from './pages/AdminUsers';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import CookieBanner from './components/CookieBanner';
+import { Analytics } from "@vercel/analytics/react";
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -84,7 +85,7 @@ const AppContent: React.FC = () => {
   );
 };
 
-import { Analytics } from "@vercel/analytics/react";
+
 
 const App: React.FC = () => {
   return (

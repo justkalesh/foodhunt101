@@ -262,7 +262,7 @@ const VendorDetail: React.FC = () => {
 
     const rushColors: Record<string, string> = {
         high: 'from-red-500 to-rose-600',
-        medium: 'from-yellow-500 to-amber-600',
+        mid: 'from-yellow-500 to-amber-600',
         low: 'from-green-500 to-emerald-600',
     };
 

@@ -178,7 +178,6 @@ const Inbox: React.FC = () => {
         // 3. Subscribe
         // Use a unique channel name per active chat to avoid mixing listeners!
         const channelName = `room:${activeChatId}`;
-        console.log(`[Realtime] Subscribing to channel: ${channelName}`);
 
         const channel = supabase.channel(channelName)
             .on(
@@ -190,7 +189,6 @@ const Inbox: React.FC = () => {
                     filter: `conversation_id=eq.${activeChatId}`
                 },
                 (payload) => {
-                    console.log('[Realtime] Message received:', payload.new);
                     const newMsg = payload.new as Message;
 
                     // FIX: Stale Closure - Use functional update
@@ -208,13 +206,12 @@ const Inbox: React.FC = () => {
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log(`[Realtime] Connected to ${channelName}`);
+                    // Connected
                 }
             });
 
         // 4. Cleanup (Critical!)
         return () => {
-            console.log(`[Realtime] Unsubscribing from ${channelName}`);
             supabase.removeChannel(channel);
         };
 
