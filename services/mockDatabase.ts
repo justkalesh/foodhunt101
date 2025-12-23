@@ -1,6 +1,7 @@
 
 import { User, Vendor, Review, MealSplit, GenericResponse, MenuItem, Message, Conversation, SplitRequest } from '../types';
 import { supabase } from './supabase';
+import { sanitizeReviewText, sanitizeMessageContent, sanitizeDishName, sanitizeName, sanitizeString, INPUT_LIMITS } from '../utils/sanitize';
 
 // --- Helper Functions ---
 // Supabase returns { data, error }. We map this to our GenericResponse.
@@ -315,11 +316,17 @@ export const api = {
 
     addReview: async (vendorId: string, userId: string, rating: number, text: string): Promise<GenericResponse<Review>> => {
       try {
+        // Sanitize input
+        const sanitizedText = sanitizeReviewText(text);
+        if (!sanitizedText || sanitizedText.length < 3) {
+          return { success: false, message: 'Review text must be at least 3 characters.' };
+        }
+
         const newReview = {
           user_id: userId,
           vendor_id: vendorId,
-          rating,
-          review_text: text,
+          rating: Math.min(5, Math.max(1, rating)), // Clamp rating 1-5
+          review_text: sanitizedText,
           created_at: new Date().toISOString()
         };
 
@@ -731,6 +738,16 @@ export const api = {
 
     create: async (splitData: any): Promise<GenericResponse<MealSplit>> => {
       try {
+        // Sanitize inputs
+        const sanitizedDishName = sanitizeDishName(splitData.dish_name);
+        const sanitizedCreatorName = sanitizeName(splitData.creator_name);
+        const sanitizedVendorName = sanitizeName(splitData.vendor_name);
+        const sanitizedTimeNote = sanitizeString(splitData.time_note)?.slice(0, INPUT_LIMITS.timeNote);
+
+        if (!sanitizedDishName || sanitizedDishName.length < 2) {
+          return { success: false, message: 'Dish name must be at least 2 characters.' };
+        }
+
         const { data: userSplits, error: fetchError } = await supabase
           .from('meal_splits')
           .select('*')
@@ -754,6 +771,10 @@ export const api = {
 
         const newSplit = {
           ...splitData,
+          dish_name: sanitizedDishName,
+          creator_name: sanitizedCreatorName,
+          vendor_name: sanitizedVendorName,
+          time_note: sanitizedTimeNote,
           people_joined_ids: [splitData.creator_id],
           is_closed: false,
           created_at: new Date().toISOString()
@@ -949,6 +970,12 @@ export const api = {
 
     send: async (senderId: string, receiverId: string, content: string): Promise<GenericResponse<Message>> => {
       try {
+        // Sanitize message content
+        const sanitizedContent = sanitizeMessageContent(content);
+        if (!sanitizedContent || sanitizedContent.length < 1) {
+          return { success: false, message: 'Message cannot be empty.' };
+        }
+
         const chatId = [senderId, receiverId].sort().join('_');
 
         // 1. Get/Create Conversation
@@ -968,7 +995,7 @@ export const api = {
               [senderId]: sender || { name: 'Unknown' },
               [receiverId]: receiver || { name: 'Unknown' }
             },
-            last_message: { content, sender_id: senderId, created_at: now, is_read: false },
+            last_message: { content: sanitizedContent, sender_id: senderId, created_at: now, is_read: false },
             unread_counts: { [senderId]: 0, [receiverId]: 1 },
             updated_at: now
           };
@@ -981,7 +1008,7 @@ export const api = {
           const updatedCounts = { ...chat.unread_counts, [receiverId]: unread };
 
           await supabase.from('conversations').update({
-            last_message: { content, sender_id: senderId, created_at: now, is_read: false },
+            last_message: { content: sanitizedContent, sender_id: senderId, created_at: now, is_read: false },
             unread_counts: updatedCounts,
             updated_at: now
           }).eq('id', chatId);
@@ -992,7 +1019,7 @@ export const api = {
           conversation_id: chatId,
           sender_id: senderId,
           receiver_id: receiverId,
-          content,
+          content: sanitizedContent,
           is_read: false,
           created_at: now
         };
