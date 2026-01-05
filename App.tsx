@@ -4,6 +4,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
+import MegaFooter from './components/MegaFooter';
 import Chatbot from './components/Chatbot';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -22,6 +23,12 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 import CookieBanner from './components/CookieBanner';
 import { Analytics } from "@vercel/analytics/react";
 
+// WIP Pages
+import AboutUs from './pages/AboutUs';
+import OurTeam from './pages/OurTeam';
+import Careers from './pages/Careers';
+import HelpCenter from './pages/HelpCenter';
+
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
 
@@ -32,6 +39,7 @@ const AppContent: React.FC = () => {
   const { needsCompletion, isLoading } = useAuth();
   usePushNotifications(); // Initialize notifications
   const showChatbot = location.pathname !== '/inbox' && location.pathname !== '/complete-profile';
+  const showFooter = location.pathname === '/';
 
   if (isLoading) {
     return (
@@ -76,9 +84,17 @@ const AppContent: React.FC = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
 
           <Route path="/inbox" element={<Inbox />} />
+
+          {/* WIP Pages */}
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/team" element={<OurTeam />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/help" element={<HelpCenter />} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         {showChatbot && <Chatbot />}
+        {showFooter && <MegaFooter />}
         <CookieBanner />
       </div>
     </div>

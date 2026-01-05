@@ -1037,9 +1037,10 @@ const MealSplits: React.FC = () => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onConfirm={() => { setShowAuthModal(false); navigate('/login'); }}
-        title="Authentication Required"
-        message="You need to be signed in to join or create meal splits."
+        title="Login Required"
+        message="Please sign in to access your inbox and chat with other foodies."
         confirmText="Sign In"
+        variant="default"
       />
 
       {/* Leave/Delete/Complete Confirmation Modal */}

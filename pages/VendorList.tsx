@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
 import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
 const VendorList: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [filtered, setFiltered] = useState<Vendor[]>([]);
   const [search, setSearch] = useState('');
@@ -19,6 +20,14 @@ const VendorList: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('');
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
+  const [hiddenGemsOnly, setHiddenGemsOnly] = useState(false);
+
+  // Check URL params on mount
+  useEffect(() => {
+    if (searchParams.get('hiddenGems') === 'true') {
+      setHiddenGemsOnly(true);
+    }
+  }, [searchParams]);
 
   // Derived Options
   const locations = Array.from(new Set(vendors.map(v => v.location))).filter((l): l is string => !!l);
@@ -36,7 +45,10 @@ const VendorList: React.FC = () => {
     setSortBy('');
     setSelectedLocations([]);
     setSelectedOrigins([]);
+    setHiddenGemsOnly(false);
     setSearch('');
+    // Clear URL params
+    setSearchParams({});
   };
 
   useEffect(() => {
@@ -72,6 +84,11 @@ const VendorList: React.FC = () => {
       res = res.filter(v => selectedOrigins.includes(v.origin_tag));
     }
 
+    // Hidden Gems filter
+    if (hiddenGemsOnly) {
+      res = res.filter(v => v.is_featured);
+    }
+
     // Sorting
     if (sortBy === 'avg_asc') {
       res.sort((a, b) => a.avg_price_per_meal - b.avg_price_per_meal);
@@ -92,7 +109,7 @@ const VendorList: React.FC = () => {
     }
 
     setFiltered(res);
-  }, [search, vendors, sortBy, selectedLocations, selectedOrigins]);
+  }, [search, vendors, sortBy, selectedLocations, selectedOrigins, hiddenGemsOnly]);
 
   if (loading) return <PageLoading message="Loading campus vendors..." />;
 
@@ -187,14 +204,16 @@ const VendorList: React.FC = () => {
                   {/* Badges */}
                   <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
                     {vendor.is_featured && (
-                      <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
-                        <Star size={12} className="fill-current" /> Featured
+                      <span className="bg-gradient-to-r from-emerald-400 to-green-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+                        <Sparkles size={12} className="fill-current" /> Hidden Gem
                       </span>
                     )}
-                    <span className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 text-gray-900 dark:text-white">
-                      <Star size={12} className="text-yellow-400 fill-current" />
-                      {vendor.rating_avg ? vendor.rating_avg.toFixed(1) : 'New'}
-                    </span>
+                    {vendor.rating_avg && (
+                      <span className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 text-gray-900 dark:text-white">
+                        <Star size={12} className="text-yellow-400 fill-current" />
+                        {vendor.rating_avg.toFixed(1)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Rush Level Badge */}
@@ -280,6 +299,22 @@ const VendorList: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-6">
+              {/* Hidden Gems Toggle */}
+              <div>
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 rounded"
+                    checked={hiddenGemsOnly}
+                    onChange={(e) => setHiddenGemsOnly(e.target.checked)}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-emerald-500" />
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Hidden Gems Only</span>
+                  </div>
+                </label>
+              </div>
+
               {/* Sort Options */}
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Sort By</h4>

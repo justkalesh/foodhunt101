@@ -2,8 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Search, Users, Star, Sparkles, Utensils, Award } from 'lucide-react';
 import { Card } from '../components/ui/Card';
+import { useAuth } from '../contexts/AuthContext';
+
 
 const Home: React.FC = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -165,7 +169,7 @@ const Home: React.FC = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
-              to="/register"
+              to={user ? "/splits" : "/register"}
               className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full bg-white text-primary-600 font-bold text-lg hover:bg-gray-100 transition-all transform hover:-translate-y-0.5 shadow-xl"
             >
               Get Started Free
