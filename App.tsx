@@ -1,11 +1,13 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import MegaFooter from './components/MegaFooter';
 import Chatbot from './components/Chatbot';
+import PageTransition from './components/PageTransition';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -32,8 +34,6 @@ import HelpCenter from './pages/HelpCenter';
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
 
-import { useLocation } from 'react-router-dom';
-
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { needsCompletion, isLoading } = useAuth();
@@ -55,44 +55,54 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-gray-100 transition-colors duration-300 relative overflow-hidden">
-      {/* Global Gradient Blobs for Glassmorphism Effect */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-500/15 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-0 w-80 h-80 bg-accent-sky/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-0 w-64 h-64 bg-accent-lime/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl" />
-      </div>
+      {/* Optimized Static Background - GPU-friendly mesh gradient without blur filters */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 80% 50% at 20% 10%, rgba(249, 115, 22, 0.12) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 40% at 85% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 50% at 10% 60%, rgba(163, 230, 53, 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 70% 40% at 80% 80%, rgba(249, 115, 22, 0.08) 0%, transparent 50%)
+          `,
+          willChange: 'auto',
+        }}
+      />
 
       <div className="relative z-10">
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/complete-profile" element={<CompleteProfile />} />
-          <Route path="/vendors" element={<VendorList />} />
-          <Route path="/vendors/:id" element={<VendorDetail />} />
-          <Route path="/splits" element={<MealSplits />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/:userId" element={<Profile />} />
+        <AnimatePresence mode="wait">
+          <div key={location.pathname}>
+            <Routes location={location}>
+              <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+              <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+              <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+              <Route path="/complete-profile" element={<PageTransition><CompleteProfile /></PageTransition>} />
+              <Route path="/vendors" element={<PageTransition><VendorList /></PageTransition>} />
+              <Route path="/vendors/:id" element={<PageTransition><VendorDetail /></PageTransition>} />
+              <Route path="/splits" element={<PageTransition><MealSplits /></PageTransition>} />
+              <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
+              <Route path="/profile/:userId" element={<PageTransition><Profile /></PageTransition>} />
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/vendors" element={<AdminVendors />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
+              {/* Admin Routes */}
+              <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+              <Route path="/admin/vendors" element={<PageTransition><AdminVendors /></PageTransition>} />
+              <Route path="/admin/users" element={<PageTransition><AdminUsers /></PageTransition>} />
+              <Route path="/terms" element={<PageTransition><TermsAndConditions /></PageTransition>} />
+              <Route path="/privacy" element={<PageTransition><PrivacyPolicy /></PageTransition>} />
 
-          <Route path="/inbox" element={<Inbox />} />
+              <Route path="/inbox" element={<PageTransition><Inbox /></PageTransition>} />
 
-          {/* WIP Pages */}
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/team" element={<OurTeam />} />
-          <Route path="/careers" element={<Careers />} />
-          <Route path="/help" element={<HelpCenter />} />
+              {/* WIP Pages */}
+              <Route path="/about" element={<PageTransition><AboutUs /></PageTransition>} />
+              <Route path="/team" element={<PageTransition><OurTeam /></PageTransition>} />
+              <Route path="/careers" element={<PageTransition><Careers /></PageTransition>} />
+              <Route path="/help" element={<PageTransition><HelpCenter /></PageTransition>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </AnimatePresence>
         {showChatbot && <Chatbot />}
         {showFooter && <MegaFooter />}
         <CookieBanner />

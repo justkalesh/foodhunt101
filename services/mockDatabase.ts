@@ -1,5 +1,5 @@
 
-import { User, Vendor, Review, MealSplit, GenericResponse, MenuItem, Message, Conversation, SplitRequest } from '../types';
+import { User, Vendor, Review, MealSplit, GenericResponse, MenuItem, Message, Conversation, SplitRequest, SplitParticipant } from '../types';
 import { supabase } from './supabase';
 import { sanitizeReviewText, sanitizeMessageContent, sanitizeDishName, sanitizeName, sanitizeString, INPUT_LIMITS } from '../utils/sanitize';
 
@@ -12,6 +12,56 @@ const getRateLimitSlot = () => {
   // 0-3, 3-6, 6-9, 9-12, 12-15, 15-18, 18-21, 21-24
   // Returns integer 0-7
   return Math.floor(hour / 3);
+};
+
+// Helper to get participant user IDs from split_participants
+const getParticipantIds = async (splitId: string): Promise<string[]> => {
+  const { data } = await supabase
+    .from('split_participants')
+    .select('user_id')
+    .eq('split_id', splitId)
+    .eq('status', 'joined');
+  return (data || []).map(p => p.user_id);
+};
+
+// Helper to check if user is participant
+const isUserParticipant = async (splitId: string, userId: string): Promise<boolean> => {
+  const { data } = await supabase
+    .from('split_participants')
+    .select('id')
+    .eq('split_id', splitId)
+    .eq('user_id', userId)
+    .eq('status', 'joined')
+    .maybeSingle();
+  return !!data;
+};
+
+// Helper to get participant count
+const getParticipantCount = async (splitId: string): Promise<number> => {
+  const { count } = await supabase
+    .from('split_participants')
+    .select('*', { count: 'exact', head: true })
+    .eq('split_id', splitId)
+    .eq('status', 'joined');
+  return count || 0;
+};
+
+// Helper to enrich splits with participant data
+const enrichSplitsWithParticipants = async (splits: any[]): Promise<MealSplit[]> => {
+  const enriched = await Promise.all(splits.map(async (split) => {
+    const { data: participants } = await supabase
+      .from('split_participants')
+      .select('id, split_id, user_id, joined_at, status')
+      .eq('split_id', split.id)
+      .eq('status', 'joined');
+
+    return {
+      ...split,
+      participants: (participants || []) as SplitParticipant[],
+      participants_count: (participants || []).length
+    } as MealSplit;
+  }));
+  return enriched;
 };
 
 
@@ -204,23 +254,33 @@ export const api = {
           }
         }
 
-        // Recent Splits (joined)
-        // 'people_joined_ids' is an array.
-        const { data: splits, error: splitError } = await supabase
-          .from('meal_splits')
-          .select('*')
-          .contains('people_joined_ids', [userId])
-          .order('created_at', { ascending: false })
-          .limit(5);
+        // Recent Splits (user is participant) - using split_participants table
+        const { data: participations } = await supabase
+          .from('split_participants')
+          .select('split_id')
+          .eq('user_id', userId)
+          .eq('status', 'joined');
 
-        if (splitError) throw splitError;
+        const splitIds = (participations || []).map(p => p.split_id);
+        let splits: any[] = [];
+
+        if (splitIds.length > 0) {
+          const { data: splitsData } = await supabase
+            .from('meal_splits')
+            .select('*')
+            .in('id', splitIds)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          splits = splitsData || [];
+        }
 
         return {
           success: true,
           message: 'Activity fetched',
           data: {
             recentReviews: reviewData,
-            recentSplits: (splits || []).slice(0, 3)
+            recentSplits: splits.slice(0, 3)
           }
         };
       } catch (error: any) {
@@ -514,7 +574,7 @@ export const api = {
     }
   },
 
-  // MEAL SPLITS
+  // MEAL SPLITS - REFACTORED TO USE split_participants TABLE
   splits: {
     getAll: async (userId?: string): Promise<GenericResponse<MealSplit[]>> => {
       try {
@@ -527,26 +587,48 @@ export const api = {
 
         if (openError) throw openError;
 
-        let allSplits = openSplits as MealSplit[];
+        let allSplitIds = (openSplits || []).map(s => s.id);
 
-        // If user is logged in, fetch their closed splits ensuring we don't duplicate
+        // If user is logged in, also fetch their closed splits via split_participants
         if (userId) {
-          const { data: mySplits, error: myError } = await supabase
-            .from('meal_splits')
-            .select('*')
-            .contains('people_joined_ids', [userId])
-            .eq('is_closed', true)
-            .order('created_at', { ascending: false });
+          const { data: myParticipations } = await supabase
+            .from('split_participants')
+            .select('split_id')
+            .eq('user_id', userId)
+            .eq('status', 'joined');
 
-          if (!myError && mySplits) {
-            allSplits = [...allSplits, ...(mySplits as MealSplit[])];
+          const myClosedSplitIds = (myParticipations || []).map(p => p.split_id);
+
+          // Fetch closed splits where user is participant
+          if (myClosedSplitIds.length > 0) {
+            const { data: mySplits } = await supabase
+              .from('meal_splits')
+              .select('*')
+              .in('id', myClosedSplitIds)
+              .eq('is_closed', true)
+              .order('created_at', { ascending: false });
+
+            // Merge without duplicates
+            const mergedSplits = [...(openSplits || [])];
+            for (const split of (mySplits || [])) {
+              if (!allSplitIds.includes(split.id)) {
+                mergedSplits.push(split);
+                allSplitIds.push(split.id);
+              }
+            }
+
+            // Enrich with participants and sort
+            const enriched = await enrichSplitsWithParticipants(mergedSplits);
+            enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            return { success: true, message: 'Fetched splits.', data: enriched };
           }
         }
 
-        // Sort combined list by created_at desc
-        allSplits.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Enrich open splits with participants
+        const enriched = await enrichSplitsWithParticipants(openSplits || []);
+        enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        return { success: true, message: 'Fetched splits.', data: allSplits };
+        return { success: true, message: 'Fetched splits.', data: enriched };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -572,10 +654,12 @@ export const api = {
           return { success: false, message: 'Rate limit exceeded: You can only request 5 splits in this 3-hour slot.' };
         }
 
-        // 2. Check if already joined or requested
-        const { data: split } = await supabase.from('meal_splits').select('people_joined_ids, creator_id, dish_name, vendor_name, split_time').eq('id', splitId).single();
+        // 2. Check if already joined via split_participants
+        const { data: split } = await supabase.from('meal_splits').select('creator_id, dish_name, vendor_name, split_time').eq('id', splitId).single();
         if (!split) return { success: false, message: 'Split not found' };
-        if (split.people_joined_ids.includes(userId)) return { success: false, message: 'You have already joined this split.' };
+
+        const alreadyJoined = await isUserParticipant(splitId, userId);
+        if (alreadyJoined) return { success: false, message: 'You have already joined this split.' };
 
         // 3. Create Request
         const { data: request, error: reqError } = await supabase
@@ -698,20 +782,29 @@ export const api = {
           const { data: split } = await supabase.from('meal_splits').select('*').eq('id', req.split_id).single();
           if (!split) return { success: false, message: 'Split not found.' };
 
-          if (split.people_joined_ids.includes(req.requester_id)) {
+          // Check if already joined via split_participants
+          const alreadyJoined = await isUserParticipant(req.split_id, req.requester_id);
+          if (alreadyJoined) {
             await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
             return { success: true, message: 'Already joined.' };
           }
 
-          const newPeople = [...split.people_joined_ids, req.requester_id];
-          const isClosed = newPeople.length >= split.people_needed;
+          // Add user to split_participants
+          const { error: insertError } = await supabase.from('split_participants').insert({
+            split_id: req.split_id,
+            user_id: req.requester_id,
+            status: 'joined'
+          });
 
-          const { error: updateError } = await supabase
-            .from('meal_splits')
-            .update({ people_joined_ids: newPeople, is_closed: isClosed })
-            .eq('id', req.split_id);
+          if (insertError && insertError.code !== '23505') throw insertError; // Ignore duplicate key
 
-          if (updateError) throw updateError;
+          // Check if split is now full
+          const participantCount = await getParticipantCount(req.split_id);
+          const isClosed = participantCount >= split.people_needed;
+
+          if (isClosed) {
+            await supabase.from('meal_splits').update({ is_closed: true }).eq('id', req.split_id);
+          }
 
           await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
           await supabase.from('users').update({ active_split_id: req.split_id }).eq('id', req.requester_id);
@@ -748,34 +841,46 @@ export const api = {
           return { success: false, message: 'Dish name must be at least 2 characters.' };
         }
 
-        const { data: userSplits, error: fetchError } = await supabase
-          .from('meal_splits')
-          .select('*')
-          .contains('people_joined_ids', [splitData.creator_id])
-          .eq('is_closed', false);
+        // Check for conflicting splits using split_participants
+        const { data: myParticipations } = await supabase
+          .from('split_participants')
+          .select('split_id')
+          .eq('user_id', splitData.creator_id)
+          .eq('status', 'joined');
 
-        if (fetchError) throw fetchError;
+        const mySplitIds = (myParticipations || []).map(p => p.split_id);
 
-        const newTime = new Date(splitData.split_time).getTime();
-        const FOUR_HOURS = 4 * 60 * 60 * 1000;
+        if (mySplitIds.length > 0) {
+          const { data: userSplits } = await supabase
+            .from('meal_splits')
+            .select('*')
+            .in('id', mySplitIds)
+            .eq('is_closed', false);
 
-        const hasConflict = userSplits?.some(s => {
-          if (!s.split_time) return false;
-          const existingTime = new Date(s.split_time).getTime();
-          return Math.abs(existingTime - newTime) < FOUR_HOURS;
-        });
+          const newTime = new Date(splitData.split_time).getTime();
+          const FOUR_HOURS = 4 * 60 * 60 * 1000;
 
-        if (hasConflict) {
-          return { success: false, message: 'You have another split scheduled within 4 hours of this time.' };
+          const hasConflict = userSplits?.some(s => {
+            if (!s.split_time) return false;
+            const existingTime = new Date(s.split_time).getTime();
+            return Math.abs(existingTime - newTime) < FOUR_HOURS;
+          });
+
+          if (hasConflict) {
+            return { success: false, message: 'You have another split scheduled within 4 hours of this time.' };
+          }
         }
 
         const newSplit = {
-          ...splitData,
-          dish_name: sanitizedDishName,
+          creator_id: splitData.creator_id,
           creator_name: sanitizedCreatorName,
+          vendor_id: splitData.vendor_id,
           vendor_name: sanitizedVendorName,
+          dish_name: sanitizedDishName,
+          total_price: splitData.total_price,
+          people_needed: splitData.people_needed,
           time_note: sanitizedTimeNote,
-          people_joined_ids: [splitData.creator_id],
+          split_time: splitData.split_time,
           is_closed: false,
           created_at: new Date().toISOString()
         };
@@ -783,9 +888,18 @@ export const api = {
         const { data: split, error } = await supabase.from('meal_splits').insert(newSplit).select().single();
         if (error) throw error;
 
+        // Add creator as first participant
+        await supabase.from('split_participants').insert({
+          split_id: split.id,
+          user_id: splitData.creator_id,
+          status: 'joined'
+        });
+
         await supabase.from('users').update({ active_split_id: split.id }).eq('id', splitData.creator_id);
 
-        return { success: true, message: 'Split created.', data: split as MealSplit };
+        // Return with participants
+        const enriched = await enrichSplitsWithParticipants([split]);
+        return { success: true, message: 'Split created.', data: enriched[0] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -803,35 +917,40 @@ export const api = {
 
         if (fetchError || !split) return { success: true, message: 'Left split (cleanup).' };
 
-        const newPeople = split.people_joined_ids.filter((id: string) => id !== userId);
+        // Remove user from split_participants
+        await supabase.from('split_participants')
+          .update({ status: 'left' })
+          .eq('split_id', splitId)
+          .eq('user_id', userId);
 
-        if (newPeople.length === 0) {
-          // Soft Delete logic (Archive)
-          await supabase.from('meal_splits').update({
-            is_closed: true,
-            people_joined_ids: []
-          }).eq('id', splitId);
+        // Get remaining participants
+        const participantIds = await getParticipantIds(splitId);
+
+        if (participantIds.length === 0) {
+          // No participants left, close the split
+          await supabase.from('meal_splits').update({ is_closed: true }).eq('id', splitId);
           return { success: true, message: 'Left and split deleted (empty).' };
         }
 
-        let updates: any = { people_joined_ids: newPeople };
+        // Transfer ownership if creator left
         if (split.creator_id === userId) {
-          const newCreatorId = newPeople[0];
+          const newCreatorId = participantIds[0];
           const { data: newCreator } = await supabase.from('users').select('name').eq('id', newCreatorId).single();
           if (newCreator) {
-            updates.creator_id = newCreatorId;
-            updates.creator_name = newCreator.name;
+            await supabase.from('meal_splits').update({
+              creator_id: newCreatorId,
+              creator_name: newCreator.name
+            }).eq('id', splitId);
           }
         }
 
-        const isClosed = newPeople.length >= split.people_needed;
-        updates.is_closed = isClosed;
+        // Check if split should be closed (full)
+        const isClosed = participantIds.length >= split.people_needed;
+        if (isClosed) {
+          await supabase.from('meal_splits').update({ is_closed: true }).eq('id', splitId);
+        }
 
-        await supabase
-          .from('meal_splits')
-          .update(updates)
-          .eq('id', splitId);
-
+        // Clean up conversation if user was not creator
         if (split.creator_id !== userId) {
           const chatId = [userId, split.creator_id].sort().join('_');
           await supabase.from('conversations').delete().eq('id', chatId);
@@ -847,7 +966,10 @@ export const api = {
       try {
         const { data, error } = await supabase.from('meal_splits').select('*').eq('id', splitId).maybeSingle();
         if (error) throw error;
-        return { success: true, message: 'Fetched split', data: data as MealSplit };
+        if (!data) return { success: false, message: 'Split not found' };
+
+        const enriched = await enrichSplitsWithParticipants([data]);
+        return { success: true, message: 'Fetched split', data: enriched[0] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -856,10 +978,8 @@ export const api = {
     delete: async (splitId: string): Promise<GenericResponse<null>> => {
       try {
         // Soft Delete logic (Archive) to bypass Foreign Key constraints
-        // We KEEP people_joined_ids so it shows up in their history
         const { error } = await supabase.from('meal_splits').update({
           is_closed: true,
-          // people_joined_ids: []  <-- CLEARED THIS PREVIOUSLY, BUT NOW WE KEEP IT FOR HISTORY
         }).eq('id', splitId);
 
         if (error) throw error;
@@ -879,7 +999,8 @@ export const api = {
           .single();
 
         if (error) throw error;
-        return { success: true, message: 'Split marked as complete!', data: data as MealSplit };
+        const enriched = await enrichSplitsWithParticipants([data]);
+        return { success: true, message: 'Split marked as complete!', data: enriched[0] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -898,152 +1019,58 @@ export const api = {
           .order('updated_at', { ascending: false });
 
         if (error) throw error;
-
-        // PATCH: Fetch latest user details (especially PFP) for all participants to ensure avatars show up
-        // This is necessary because participant_details in the conversation row might be stale or missing fields
-        const conversations = data as Conversation[];
-        const userIds = new Set<string>();
-        conversations.forEach(c => c.participants.forEach(pId => userIds.add(pId)));
-
-        if (userIds.size > 0) {
-          const { data: users } = await supabase.from('users').select('id, name, email, pfp_url').in('id', Array.from(userIds));
-          const userMap = (users || []).reduce((acc: any, u: any) => {
-            acc[u.id] = u;
-            return acc;
-          }, {});
-
-          conversations.forEach(c => {
-            c.participants.forEach(pId => {
-              if (userMap[pId]) {
-                // Merge fresh data
-                c.participant_details = c.participant_details || {};
-                c.participant_details[pId] = {
-                  ...c.participant_details[pId],
-                  name: userMap[pId].name, // Ensure name is fresh
-                  email: userMap[pId].email,
-                  pfp_url: userMap[pId].pfp_url
-                };
-              }
-            });
-          });
-        }
-
-        return { success: true, message: 'Inbox fetched', data: conversations };
+        return { success: true, message: 'Fetched inbox.', data: data as Conversation[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
 
-    getChat: async (conversationId: string): Promise<GenericResponse<Message[]>> => {
+    getConversation: async (conversationId: string): Promise<GenericResponse<Message[]>> => {
       try {
         const { data, error } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true }); // Chronological
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
-
-        // Fetch statuses for any request_ids
-        const messages = data as Message[];
-        const requestIds = messages.map(m => m.request_id).filter(Boolean) as string[];
-
-        if (requestIds.length > 0) {
-          const { data: reqs } = await supabase.from('split_join_requests').select('id, status').in('id', requestIds);
-          const statusMap = (reqs || []).reduce((acc: any, curr: any) => {
-            acc[curr.id] = curr.status;
-            return acc;
-          }, {});
-
-          messages.forEach(m => {
-            if (m.request_id) {
-              m.request_status = statusMap[m.request_id] || 'pending';
-            }
-          });
-        }
-
-        return { success: true, message: 'Chat fetched', data: messages };
+        return { success: true, message: 'Fetched messages.', data: data as Message[] };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
 
-    send: async (senderId: string, receiverId: string, content: string): Promise<GenericResponse<Message>> => {
+    sendMessage: async (conversationId: string, senderId: string, receiverId: string, content: string): Promise<GenericResponse<Message>> => {
       try {
-        // Sanitize message content
         const sanitizedContent = sanitizeMessageContent(content);
-        if (!sanitizedContent || sanitizedContent.length < 1) {
+        if (!sanitizedContent) {
           return { success: false, message: 'Message cannot be empty.' };
         }
 
-        const chatId = [senderId, receiverId].sort().join('_');
-
-        // 1. Get/Create Conversation
-        let { data: chat } = await supabase.from('conversations').select('*').eq('id', chatId).single();
-
-        const now = new Date().toISOString();
-
-        if (!chat) {
-          // Fetch names
-          const { data: sender } = await supabase.from('users').select('name, email, pfp_url').eq('id', senderId).single();
-          const { data: receiver } = await supabase.from('users').select('name, email, pfp_url').eq('id', receiverId).single();
-
-          const newConv = {
-            id: chatId,
-            participants: [senderId, receiverId],
-            participant_details: {
-              [senderId]: sender || { name: 'Unknown' },
-              [receiverId]: receiver || { name: 'Unknown' }
-            },
-            last_message: { content: sanitizedContent, sender_id: senderId, created_at: now, is_read: false },
-            unread_counts: { [senderId]: 0, [receiverId]: 1 },
-            updated_at: now
-          };
-
-          const { error: createError } = await supabase.from('conversations').insert(newConv);
-          // If concurrent create, this fails, but we can ignore or retry. Simplified here.
-        } else {
-          // Update existng
-          const unread = (chat.unread_counts?.[receiverId] || 0) + 1;
-          const updatedCounts = { ...chat.unread_counts, [receiverId]: unread };
-
-          await supabase.from('conversations').update({
-            last_message: { content: sanitizedContent, sender_id: senderId, created_at: now, is_read: false },
-            unread_counts: updatedCounts,
-            updated_at: now
-          }).eq('id', chatId);
-        }
-
-        // 2. Insert Message
         const newMessage = {
-          conversation_id: chatId,
+          conversation_id: conversationId,
           sender_id: senderId,
           receiver_id: receiverId,
           content: sanitizedContent,
           is_read: false,
-          created_at: now
+          created_at: new Date().toISOString()
         };
 
-        const { data: msg, error: msgError } = await supabase.from('messages').insert(newMessage).select().single();
-        if (msgError) throw msgError;
+        const { data, error } = await supabase.from('messages').insert(newMessage).select().single();
+        if (error) throw error;
 
-        // --- PUSH NOTIFICATION TRIGGER ---
-        try {
-          await fetch('/api/send-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: receiverId,
-              title: 'New Message',
-              body: `You received a message: ${content.substring(0, 30)}${content.length > 30 ? '...' : ''}`
-            })
-          });
-        } catch (err) {
-          console.error('Failed to send push notification', err);
-        }
-        // ---------------------------------
+        // Update conversation last_message
+        await supabase.from('conversations').update({
+          last_message: {
+            content: sanitizedContent,
+            sender_id: senderId,
+            created_at: new Date().toISOString(),
+            is_read: false
+          },
+          updated_at: new Date().toISOString()
+        }).eq('id', conversationId);
 
-        return { success: true, message: 'Message sent.', data: msg as Message };
+        return { success: true, message: 'Message sent.', data: data as Message };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
@@ -1051,22 +1078,84 @@ export const api = {
 
     markAsRead: async (conversationId: string, userId: string): Promise<GenericResponse<null>> => {
       try {
-        // Fetch current to merge json
-        const { data: chat } = await supabase.from('conversations').select('unread_counts').eq('id', conversationId).single();
-        if (chat) {
-          const newCounts = { ...chat.unread_counts, [userId]: 0 };
-          await supabase.from('conversations').update({ unread_counts: newCounts }).eq('id', conversationId);
+        // Mark all messages as read where receiver is current user
+        await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', conversationId)
+          .eq('receiver_id', userId);
+
+        // Update conversation last_message is_read if applicable
+        const { data: conv } = await supabase.from('conversations').select('last_message').eq('id', conversationId).single();
+        if (conv?.last_message && conv.last_message.sender_id !== userId) {
+          await supabase.from('conversations').update({
+            last_message: { ...conv.last_message, is_read: true }
+          }).eq('id', conversationId);
         }
-        // Also update individual messages if we wanted strict read receipts
-        return { success: true, message: 'Marked as read' };
+
+        return { success: true, message: 'Marked as read.' };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     },
 
-    deleteConversation: async (userId: string, conversationId: string): Promise<GenericResponse<null>> => {
+    getOrCreateConversation: async (userId: string, otherUserId: string): Promise<GenericResponse<Conversation>> => {
       try {
-        // Cascade delete should handle messages
+        const chatId = [userId, otherUserId].sort().join('_');
+
+        // Check if exists
+        const { data: existing } = await supabase.from('conversations').select('*').eq('id', chatId).maybeSingle();
+        if (existing) return { success: true, message: 'Found.', data: existing as Conversation };
+
+        // Create new
+        const { data: userA } = await supabase.from('users').select('name, email, pfp_url').eq('id', userId).single();
+        const { data: userB } = await supabase.from('users').select('name, email, pfp_url').eq('id', otherUserId).single();
+
+        const newConv = {
+          id: chatId,
+          participants: [userId, otherUserId],
+          participant_details: {
+            [userId]: userA,
+            [otherUserId]: userB
+          },
+          last_message: null,
+          unread_counts: { [userId]: 0, [otherUserId]: 0 },
+          updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase.from('conversations').insert(newConv).select().single();
+        if (error) throw error;
+
+        return { success: true, message: 'Created.', data: data as Conversation };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+
+    // Simplified send that creates/gets conversation automatically (used by AuthContext, Inbox)
+    send: async (receiverId: string, senderId: string, content: string): Promise<GenericResponse<Message>> => {
+      try {
+        // Get or create conversation
+        const convRes = await api.messages.getOrCreateConversation(senderId, receiverId);
+        if (!convRes.success || !convRes.data) return { success: false, message: 'Failed to get/create conversation' };
+
+        // Send message
+        return api.messages.sendMessage(convRes.data.id, senderId, receiverId, content);
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+
+    // Alias for getConversation (used by Inbox)
+    getChat: async (conversationId: string): Promise<GenericResponse<Message[]>> => {
+      return api.messages.getConversation(conversationId);
+    },
+
+    deleteConversation: async (conversationId: string, userId?: string): Promise<GenericResponse<null>> => {
+      try {
+        // Delete all messages first
+        await supabase.from('messages').delete().eq('conversation_id', conversationId);
+        // Delete conversation
         const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
         if (error) throw error;
         return { success: true, message: 'Conversation deleted.' };
@@ -1077,77 +1166,227 @@ export const api = {
 
     clearAll: async (userId: string): Promise<GenericResponse<null>> => {
       try {
-        const { error } = await supabase.from('conversations').delete().contains('participants', [userId]);
-        if (error) throw error;
-        return { success: true, message: 'Inbox cleared.' };
+        // Get all conversations for user
+        const { data: convs } = await supabase
+          .from('conversations')
+          .select('id')
+          .contains('participants', [userId]);
+
+        if (convs) {
+          for (const conv of convs) {
+            await supabase.from('messages').delete().eq('conversation_id', conv.id);
+            await supabase.from('conversations').delete().eq('id', conv.id);
+          }
+        }
+        return { success: true, message: 'All conversations cleared.' };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
     }
   },
 
-  // ADMIN ENDPOINTS (Stubbed for now, Supabase has simpler counts)
+  // ADMIN ENDPOINTS
   admin: {
-    getStats: async (): Promise<GenericResponse<any>> => {
-      const { count: u } = await supabase.from('users').select('*', { count: 'exact', head: true });
-      const { count: v } = await supabase.from('vendors').select('*', { count: 'exact', head: true });
-      const { count: r } = await supabase.from('reviews').select('*', { count: 'exact', head: true });
-      return { success: true, message: 'Stats', data: { totalUsers: u, totalVendors: v, totalReviews: r } };
+    getAllUsers: async (): Promise<GenericResponse<User[]>> => {
+      try {
+        const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return { success: true, message: 'Fetched users.', data: data as User[] };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
     },
-    users: {
-      getAll: async () => {
-        const { data } = await supabase.from('users').select('*');
-        return { success: true, message: 'Users', data: data as User[] };
-      },
-      toggleStatus: async (id: string) => {
-        // Fetch first
-        const { data } = await supabase.from('users').select('is_disabled').eq('id', id).single();
-        if (data) {
-          const { data: updated } = await supabase.from('users').update({ is_disabled: !data.is_disabled }).eq('id', id).select().single();
-          return { success: true, message: 'Toggled', data: updated as User };
-        }
-        return { success: false, message: 'User not found' };
-      },
-      create: async (data: any) => ({ success: false, message: "Use signup page (Admin creation not implemented)" }),
+    toggleUserDisabled: async (userId: string, isDisabled: boolean): Promise<GenericResponse<User>> => {
+      try {
+        const { data, error } = await supabase.from('users').update({ is_disabled: isDisabled }).eq('id', userId).select().single();
+        if (error) throw error;
+        return { success: true, message: `User ${isDisabled ? 'disabled' : 'enabled'}.`, data: data as User };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+    updateUserRole: async (userId: string, role: string): Promise<GenericResponse<User>> => {
+      try {
+        const { data, error } = await supabase.from('users').update({ role }).eq('id', userId).select().single();
+        if (error) throw error;
+        return { success: true, message: `User role updated to ${role}.`, data: data as User };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+    createVendor: async (vendorData: Partial<Vendor>): Promise<GenericResponse<Vendor>> => {
+      try {
+        const { data, error } = await supabase.from('vendors').insert(vendorData).select().single();
+        if (error) throw error;
+        return { success: true, message: 'Vendor created.', data: data as Vendor };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+    updateVendor: async (vendorId: string, updates: Partial<Vendor>): Promise<GenericResponse<Vendor>> => {
+      try {
+        const { data, error } = await supabase.from('vendors').update(updates).eq('id', vendorId).select().single();
+        if (error) throw error;
+        return { success: true, message: 'Vendor updated.', data: data as Vendor };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+    deleteVendor: async (vendorId: string): Promise<GenericResponse<null>> => {
+      try {
+        const { error } = await supabase.from('vendors').delete().eq('id', vendorId);
+        if (error) throw error;
+        return { success: true, message: 'Vendor deleted.' };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
 
-      rewardPoints: async (userIds: string[], amount: number) => {
-        try {
-          if (userIds.length === 0) return { success: false, message: "No users selected" };
-
-          // Using RPC or loop. For mock, loop is fine or single update if ALL.
-          // Supabase doesn't have "UPDATE WHERE ID IN [...] increment" easily without RPC.
-          // Note: "loyalty_points" is on "users" table.
-
-          // Implementation: Fetch current points, add, update. Slow but works for mock.
-          // OR: Use rpc if exists. I'll assume standard update for now.
-
-          for (const uid of userIds) {
-            const { data: u } = await supabase.from('users').select('loyalty_points').eq('id', uid).single();
-            if (u) {
-              const newPoints = (u.loyalty_points || 0) + amount;
-              await supabase.from('users').update({ loyalty_points: newPoints }).eq('id', uid);
-            }
+    // Additional admin methods used by AdminDashboard, AdminUsers, AdminVendors
+    getStats: async (): Promise<GenericResponse<{ users: number; vendors: number; splits: number; reviews: number }>> => {
+      try {
+        const [users, vendors, splits, reviews] = await Promise.all([
+          supabase.from('users').select('*', { count: 'exact', head: true }),
+          supabase.from('vendors').select('*', { count: 'exact', head: true }),
+          supabase.from('meal_splits').select('*', { count: 'exact', head: true }),
+          supabase.from('reviews').select('*', { count: 'exact', head: true })
+        ]);
+        return {
+          success: true,
+          message: 'Stats fetched.',
+          data: {
+            users: users.count || 0,
+            vendors: vendors.count || 0,
+            splits: splits.count || 0,
+            reviews: reviews.count || 0
           }
-          return { success: true, message: ` rewarded ${amount} points to ${userIds.length} users.` };
-        } catch (e: any) {
-          return { success: false, message: e.message };
+        };
+      } catch (error: any) {
+        return { success: false, message: error.message };
+      }
+    },
+
+    // Users namespace for AdminUsers page
+    users: {
+      getAll: async (): Promise<GenericResponse<User[]>> => {
+        try {
+          const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+          if (error) throw error;
+          return { success: true, message: 'Fetched users.', data: data as User[] };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      update: async (userId: string, updates: Partial<User>): Promise<GenericResponse<User>> => {
+        try {
+          const { data, error } = await supabase.from('users').update(updates).eq('id', userId).select().single();
+          if (error) throw error;
+          return { success: true, message: 'User updated.', data: data as User };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      delete: async (userId: string): Promise<GenericResponse<null>> => {
+        try {
+          const { error } = await supabase.from('users').delete().eq('id', userId);
+          if (error) throw error;
+          return { success: true, message: 'User deleted.' };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      toggleStatus: async (userId: string): Promise<GenericResponse<User>> => {
+        try {
+          // First get current status
+          const { data: current } = await supabase.from('users').select('is_disabled').eq('id', userId).single();
+          const newStatus = !(current?.is_disabled);
+          const { data, error } = await supabase.from('users').update({ is_disabled: newStatus }).eq('id', userId).select().single();
+          if (error) throw error;
+          return { success: true, message: `User ${newStatus ? 'disabled' : 'enabled'}.`, data: data as User };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      rewardPoints: async (userIds: string[], amount: number): Promise<GenericResponse<null>> => {
+        try {
+          for (const userId of userIds) {
+            const { data: user } = await supabase.from('users').select('loyalty_points').eq('id', userId).single();
+            const newPoints = (user?.loyalty_points || 0) + amount;
+            await supabase.from('users').update({ loyalty_points: newPoints }).eq('id', userId);
+          }
+          return { success: true, message: `Rewarded ${userIds.length} user(s) with ${amount} points.` };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      create: async (userData: { email: string; name: string; semester: string; password: string; role: string }): Promise<GenericResponse<User>> => {
+        try {
+          // Create auth user first
+          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: userData.email,
+            password: userData.password,
+            email_confirm: true
+          });
+          if (authError) throw authError;
+          if (!authData.user) throw new Error('Failed to create auth user');
+
+          // Create profile
+          const newProfile = {
+            id: authData.user.id,
+            email: userData.email,
+            name: userData.name,
+            semester: userData.semester,
+            role: userData.role,
+            is_disabled: false,
+            created_at: new Date().toISOString(),
+            loyalty_points: 0
+          };
+          const { data, error } = await supabase.from('users').insert(newProfile).select().single();
+          if (error) throw error;
+          return { success: true, message: 'User created.', data: data as User };
+        } catch (error: any) {
+          return { success: false, message: error.message };
         }
       }
     },
+
+    // Vendors namespace for AdminVendors page
     vendors: {
-      create: async (data: any) => {
-        const { data: v, error } = await supabase.from('vendors').insert(data).select().single();
-        if (error) return { success: false, message: error.message };
-        return { success: true, message: 'Created', data: v };
+      getAll: async (): Promise<GenericResponse<Vendor[]>> => {
+        try {
+          const { data, error } = await supabase.from('vendors').select('*').order('sort_order', { ascending: true });
+          if (error) throw error;
+          return { success: true, message: 'Fetched vendors.', data: data as Vendor[] };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
       },
-      update: async (id: string, data: any) => {
-        const { data: v, error } = await supabase.from('vendors').update(data).eq('id', id).select().single();
-        if (error) return { success: false, message: error.message };
-        return { success: true, message: 'Updated', data: v };
+      create: async (vendor: Partial<Vendor>): Promise<GenericResponse<Vendor>> => {
+        try {
+          const { data, error } = await supabase.from('vendors').insert(vendor).select().single();
+          if (error) throw error;
+          return { success: true, message: 'Vendor created.', data: data as Vendor };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
       },
-      delete: async (id: string) => {
-        await supabase.from('vendors').delete().eq('id', id);
-        return { success: true, message: 'Deleted' };
+      update: async (vendorId: string, updates: Partial<Vendor>): Promise<GenericResponse<Vendor>> => {
+        try {
+          const { data, error } = await supabase.from('vendors').update(updates).eq('id', vendorId).select().single();
+          if (error) throw error;
+          return { success: true, message: 'Vendor updated.', data: data as Vendor };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
+      },
+      delete: async (vendorId: string): Promise<GenericResponse<null>> => {
+        try {
+          const { error } = await supabase.from('vendors').delete().eq('id', vendorId);
+          if (error) throw error;
+          return { success: true, message: 'Vendor deleted.' };
+        } catch (error: any) {
+          return { success: false, message: error.message };
+        }
       }
     }
   }

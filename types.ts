@@ -77,6 +77,18 @@ export interface MenuItem {
   xl_price?: number;
 }
 
+// New: Normalized join table for meal split participants
+export interface SplitParticipant {
+  id: string;
+  split_id: string;
+  user_id: string;
+  joined_at: string;
+  status: 'joined' | 'left' | 'removed';
+  // Joined user details (from API)
+  user_name?: string;
+  user_pfp?: string;
+}
+
 // Keep existing types for MealSplit to maintain feature compatibility
 export interface MealSplit {
   id: string;
@@ -87,7 +99,10 @@ export interface MealSplit {
   dish_name: string;
   total_price: number;
   people_needed: number;
-  people_joined_ids: string[];
+  // Deprecated: people_joined_ids - now use split_participants table
+  // Computed from split_participants join
+  participants?: SplitParticipant[];
+  participants_count?: number;
   time_note: string;
   split_time?: string; // ISO string for expiration check
   is_closed: boolean;

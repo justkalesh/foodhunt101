@@ -122,7 +122,7 @@ const Chatbot: React.FC = () => {
                         vendor: s.vendor_name,
                         dish: s.dish_name,
                         time: s.split_time,
-                        needed: s.people_needed - (s.people_joined_ids?.length || 0)
+                        needed: s.people_needed - (s.participants_count ?? (s.participants?.length || 0))
                     }));
                 }
 

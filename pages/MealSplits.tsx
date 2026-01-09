@@ -385,11 +385,14 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
   onComplete,
   onDelete,
 }) => {
-  const isFull = split.people_joined_ids.length >= split.people_needed;
+  // Use participants array instead of people_joined_ids
+  const participantIds = (split.participants || []).map(p => p.user_id);
+  const participantCount = split.participants_count ?? participantIds.length;
+  const isFull = participantCount >= split.people_needed;
   const isClosed = split.is_closed;
-  const joined = user && split.people_joined_ids.includes(user.id);
-  const progress = (split.people_joined_ids.length / split.people_needed) * 100;
-  const spotsLeft = split.people_needed - split.people_joined_ids.length;
+  const joined = user && participantIds.includes(user.id);
+  const progress = (participantCount / split.people_needed) * 100;
+  const spotsLeft = split.people_needed - participantCount;
 
   return (
     <div className="stagger-item">
@@ -448,7 +451,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
               <ProgressRing progress={progress} size={56} strokeWidth={5} />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-sm font-bold text-gray-900 dark:text-white">
-                  {split.people_joined_ids.length}/{split.people_needed}
+                  {participantCount}/{split.people_needed}
                 </span>
               </div>
             </div>
@@ -609,8 +612,10 @@ const MealSplits: React.FC = () => {
     .filter(split => {
       if (split.is_closed) return false;
 
-      const isFull = split.people_joined_ids.length >= split.people_needed;
-      const joined = user && split.people_joined_ids.includes(user.id);
+      const participantIds = (split.participants || []).map(p => p.user_id);
+      const participantCount = split.participants_count ?? participantIds.length;
+      const isFull = participantCount >= split.people_needed;
+      const joined = user && participantIds.includes(user.id);
       if (isFull && !joined && split.creator_id !== user?.id) return false;
 
       if (filterVendor && !split.vendor_name.toLowerCase().includes(filterVendor.toLowerCase())) {
@@ -625,11 +630,13 @@ const MealSplits: React.FC = () => {
       return true;
     })
     .sort((a, b) => {
+      const aCount = a.participants_count ?? (a.participants || []).length;
+      const bCount = b.participants_count ?? (b.participants || []).length;
       switch (sortBy) {
         case 'price':
           return (a.total_price / a.people_needed) - (b.total_price / b.people_needed);
         case 'slots':
-          return (b.people_needed - b.people_joined_ids.length) - (a.people_needed - a.people_joined_ids.length);
+          return (b.people_needed - bCount) - (a.people_needed - aCount);
         case 'time':
         default:
           return new Date(a.split_time || 0).getTime() - new Date(b.split_time || 0).getTime();
@@ -666,7 +673,8 @@ const MealSplits: React.FC = () => {
   // Show leave confirmation modal
   const handleLeave = (split: MealSplit) => {
     if (!user) return;
-    const confirmMsg = (split.creator_id === user.id && split.people_joined_ids.length > 1)
+    const participantCount = split.participants_count ?? (split.participants || []).length;
+    const confirmMsg = (split.creator_id === user.id && participantCount > 1)
       ? 'Leaving will transfer ownership to the next member. Continue?'
       : 'Are you sure you want to leave this split?';
     setPendingAction({ type: 'leave', split, message: confirmMsg });

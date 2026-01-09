@@ -95,23 +95,66 @@ create table public.messages (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- POLICIES (Simple Public Access for Development - WARNING: NOT SECURE)
--- In production, you must use RLS (Row Level Security)
+-- ============================================================================
+-- SECURITY HELPER FUNCTIONS
+-- ============================================================================
 
+-- Function to check if current user is an admin
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid()::text
+    and role = 'admin'
+  );
+$$;
+
+-- ============================================================================
+-- PUBLIC PROFILES VIEW (Safe public data only)
+-- ============================================================================
+
+-- Exposes only safe, non-sensitive user data for public/authenticated access
+create or replace view public.public_profiles as
+select
+  id,
+  name,
+  semester,
+  role,
+  pfp_url,
+  loyalty_points
+from public.users;
+
+-- Grant read access to authenticated users on the public view
+grant select on public.public_profiles to authenticated;
+
+-- ============================================================================
+-- ROW LEVEL SECURITY POLICIES
+-- ============================================================================
+
+-- USERS TABLE POLICIES
 alter table public.users enable row level security;
--- Users can see their own profile and others (needed for searching/viewing profiles)
-create policy "Public profiles are viewable by everyone" on public.users for select using (true);
+-- Only authenticated users can view user profiles (not public)
+create policy "Authenticated users can view profiles" on public.users for select using (auth.role() = 'authenticated');
 -- Users can update only their own profile
 create policy "Users can update their own profile" on public.users for update using (auth.uid()::text = id);
 -- Users can insert their own profile (on signup)
 create policy "Users can insert their own profile" on public.users for insert with check (auth.uid()::text = id);
 
 
+-- VENDORS TABLE POLICIES
 alter table public.vendors enable row level security;
--- Vendors are viewable by everyone
+-- Vendors are viewable by everyone (students need to browse)
 create policy "Vendors are viewable by everyone" on public.vendors for select using (true);
--- Only admins/service role can insert/update vendors (simplification: assume app logic handles admin check or manual DB management for now)
--- ideally: create policy "Admins can update vendors" ... 
+-- Only admins can insert vendors
+create policy "Admins can insert vendors" on public.vendors for insert with check (public.is_admin());
+-- Only admins can update vendors
+create policy "Admins can update vendors" on public.vendors for update using (public.is_admin());
+-- Only admins can delete vendors
+create policy "Admins can delete vendors" on public.vendors for delete using (public.is_admin()); 
 
 
 alter table public.reviews enable row level security;
@@ -123,8 +166,16 @@ create policy "Authenticated users can create reviews" on public.reviews for ins
 create policy "Users can delete their own reviews" on public.reviews for delete using (auth.uid()::text = user_id);
 
 
+-- MENU ITEMS TABLE POLICIES
 alter table public.menu_items enable row level security;
+-- Menu items are viewable by everyone (students need to browse menus)
 create policy "Menu items are viewable by everyone" on public.menu_items for select using (true);
+-- Only admins can insert menu items
+create policy "Admins can insert menu items" on public.menu_items for insert with check (public.is_admin());
+-- Only admins can update menu items
+create policy "Admins can update menu items" on public.menu_items for update using (public.is_admin());
+-- Only admins can delete menu items
+create policy "Admins can delete menu items" on public.menu_items for delete using (public.is_admin());
 
 
 alter table public.meal_splits enable row level security;
