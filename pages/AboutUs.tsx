@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     ArrowLeft,
     Github,
@@ -15,6 +15,8 @@ import {
 import MegaFooter from '../components/MegaFooter';
 
 const AboutUs: React.FC = () => {
+    const navigate = useNavigate();
+
     const socialLinks = [
         {
             name: 'LinkedIn',
@@ -48,20 +50,14 @@ const AboutUs: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-            {/* Header with Back Button */}
-            <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-slate-800">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-                    <Link
-                        to="/"
-                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                    >
-                        <ArrowLeft size={24} className="text-gray-700 dark:text-gray-300" />
-                    </Link>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">About Us</h1>
-                </div>
-            </div>
-
             <div className="max-w-4xl mx-auto px-4 py-8 pb-0">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-2 text-primary-600 hover:underline mb-6"
+                >
+                    <ArrowLeft size={20} /> Back
+                </button>
                 {/* Hero Section */}
                 <div className="text-center mb-12">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-semibold mb-6">
