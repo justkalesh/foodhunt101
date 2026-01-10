@@ -1,13 +1,18 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const PrivacyPolicy: React.FC = () => {
+    const navigate = useNavigate();
+
     return (
         <div className="max-w-4xl mx-auto px-4 py-8">
-            <Link to="/" className="inline-flex items-center gap-2 text-primary-600 hover:underline mb-6">
-                <ArrowLeft size={20} /> Back to Home
-            </Link>
+            <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 text-primary-600 hover:underline mb-6"
+            >
+                <ArrowLeft size={20} /> Back
+            </button>
 
             <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">PRIVACY POLICY FOR FOOD-HUNT</h1>
