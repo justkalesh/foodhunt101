@@ -26,6 +26,7 @@
 
 ```
 Food-Hunt/
+├── android/                # Capacitor Android project
 ├── api/                    # Serverless API handlers (Vercel)
 │   ├── chat.js            # AI chatbot endpoint
 │   ├── scan-menu.js       # Menu image OCR
@@ -33,31 +34,51 @@ Food-Hunt/
 ├── components/
 │   ├── Chatbot.tsx        # AI assistant widget
 │   ├── Navbar.tsx         # Navigation bar
+│   ├── MegaFooter.tsx     # Rich footer with navigation
 │   ├── ConfirmationModal.tsx
-│   └── CookieBanner.tsx
+│   ├── CookieBanner.tsx
+│   ├── PageTransition.tsx # Animation wrapper
+│   └── ui/                 # Reusable UI component library
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       ├── Input.tsx
+│       ├── Select.tsx
+│       ├── ConfirmationModal.tsx
+│       └── LoadingSpinner.tsx
 ├── contexts/
-│   ├── AuthContext.tsx    # Authentication state
-│   └── ThemeContext.tsx   # Dark/light mode
+│   ├── AuthContext.tsx    # Authentication state + UID generation
+│   └── ThemeContext.tsx   # Dark/light/system mode
 ├── hooks/
 │   └── usePushNotifications.ts
-├── pages/                  # 15 page components
+├── pages/                  # 19 page components
 │   ├── Home.tsx           # Landing page
-│   ├── VendorList.tsx     # Browse vendors
+│   ├── VendorList.tsx     # Browse vendors with filters
 │   ├── VendorDetail.tsx   # Vendor page + reviews + menu
 │   ├── MealSplits.tsx     # Meal splitting feature
-│   ├── Inbox.tsx          # Real-time chat
-│   ├── Profile.tsx        # User profile
+│   ├── Inbox.tsx          # Real-time chat with UID search
+│   ├── Profile.tsx        # User profile with UID display
 │   ├── AdminDashboard.tsx # Admin stats
-│   ├── AdminVendors.tsx   # Vendor management
-│   └── AdminUsers.tsx     # User management
+│   ├── AdminVendors.tsx   # Vendor management + AI scan
+│   ├── AdminUsers.tsx     # User management
+│   ├── AboutUs.tsx        # Developer info + social links
+│   ├── HelpCenter.tsx     # Direct chat with admin
+│   ├── Careers.tsx        # Placeholder page
+│   ├── OurTeam.tsx        # Placeholder page
+│   ├── PrivacyPolicy.tsx  # Full privacy policy
+│   └── TermsAndConditions.tsx # Terms of service
 ├── services/
 │   ├── supabase.ts        # Supabase client init
 │   ├── firebase.ts        # Firebase init
-│   ├── mockDatabase.ts    # API service layer (1100+ lines)
+│   ├── mockDatabase.ts    # API service layer (1400+ lines)
 │   ├── geminiService.ts   # AI service wrapper
 │   └── seeder.ts          # Database seeder
+├── utils/
+│   └── sanitize.ts        # Input validation & sanitization
+├── tests/
+│   └── split_limit.test.ts # Split feature tests
 ├── App.tsx                # Main router
 ├── types.ts               # TypeScript interfaces
+├── capacitor.config.ts    # Android app config
 └── supabase_schema.sql    # Database schema + RLS
 ```
 
@@ -79,6 +100,7 @@ erDiagram
 
     users {
         text id PK
+        text uid UK "6-digit unique ID"
         text email UK
         text name
         text semester
@@ -116,6 +138,7 @@ erDiagram
         numeric small_price
         numeric medium_price
         numeric large_price
+        numeric xl_price
     }
     reviews {
         uuid id PK
@@ -132,10 +155,16 @@ erDiagram
         text dish_name
         numeric total_price
         integer people_needed
-        text[] people_joined_ids
         text time_note
         timestamp split_time
         boolean is_closed
+    }
+    split_participants {
+        uuid id PK
+        uuid split_id FK
+        text user_id FK
+        timestamp joined_at
+        text status "joined/left/removed"
     }
     conversations {
         text id PK
@@ -202,7 +231,7 @@ Users can browse food vendors with filtering and sorting:
 
 Each vendor page shows:
 - Contact info, location, cuisine type
-- **Dynamic menu** with category sections and size variants (S/M/L pricing)
+- **Dynamic menu** with category sections and size variants (S/M/L/XL pricing)
 - **Reviews system** with star ratings (1-5) and text
 - Review submission awards +5 loyalty points
 
@@ -245,6 +274,8 @@ Powered by Supabase Realtime subscriptions:
 - Automated messages for split join requests
 - Inline Accept/Reject buttons for pending requests
 - Unread count tracking
+- **UID-based user search** (search by 6-digit unique ID)
+- Vendor mention autocomplete with `@`
 
 **Key file:** [Inbox.tsx](file:///c:/Important/Code/Food-Hunt/pages/Inbox.tsx)
 
@@ -290,6 +321,18 @@ flowchart LR
 
 ---
 
+### 8.5. Unique User IDs (UID)
+
+Each user receives a unique 6-digit ID on account creation:
+- Generated randomly with collision checking
+- Displayed on user profiles
+- Searchable in Inbox for easy user discovery
+- Format: `170467`, `293841`, etc.
+
+**Key file:** [AuthContext.tsx](file:///c:/Important/Code/Food-Hunt/contexts/AuthContext.tsx) - `generateUniqueUid()`
+
+---
+
 ### 8. Admin Panel
 
 Three admin pages for platform management:
@@ -317,12 +360,12 @@ Firebase Cloud Messaging for:
 
 ## API Service Layer
 
-The [mockDatabase.ts](file:///c:/Important/Code/Food-Hunt/services/mockDatabase.ts) file (1100+ lines) is the central API layer:
+The [mockDatabase.ts](file:///c:/Important/Code/Food-Hunt/services/mockDatabase.ts) file (1400+ lines) is the central API layer:
 
 ```typescript
 export const api = {
   users: {
-    getMe(), updateProfile(), getActivity(), search()
+    getMe(), updateProfile(), getActivity(), search() // UID or email search
   },
   vendors: {
     getAll(), getById(), getReviews(), addReview(),
@@ -337,7 +380,8 @@ export const api = {
     getMyRequests(), markComplete()
   },
   messages: {
-    getConversations(), getMessages(), send(), markAsRead()
+    getConversations(), getMessages(), send(), markAsRead(),
+    deleteConversation(), clearAllConversations()
   },
   // Admin endpoints...
 }
@@ -348,6 +392,26 @@ export const api = {
 - Supabase client handles RLS security
 - Cascading updates (e.g., recalculating vendor stats after menu changes)
 - Dynamic popularity calculation based on ratings + engagement
+- **Input sanitization** via `utils/sanitize.ts` for all user inputs
+
+---
+
+## Input Validation & Sanitization
+
+The [sanitize.ts](file:///c:/Important/Code/Food-Hunt/utils/sanitize.ts) module provides:
+
+| Function | Purpose |
+|----------|----------|
+| `sanitizeReviewText()` | Clean review content |
+| `sanitizeMessageContent()` | Clean chat messages |
+| `sanitizeDishName()` | Clean menu item names |
+| `sanitizeName()` | Clean user/vendor names |
+| `sanitizeString()` | Generic string sanitization |
+
+**Limits enforced:**
+- Review text: Max 500 characters
+- Messages: Max 1000 characters
+- Names: Max 100 characters
 
 ---
 
@@ -401,6 +465,14 @@ enum UserRole {
 npm run dev      # Start Vite dev server
 npm run build    # Production build
 npm run preview  # Preview production build
+```
+
+### Android Development (Capacitor)
+
+```bash
+npx cap sync android   # Sync web assets to Android
+npx cap open android   # Open in Android Studio
+npx cap run android    # Build and run on device/emulator
 ```
 
 ---
