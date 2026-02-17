@@ -604,8 +604,44 @@ const Inbox: React.FC = () => {
                                                 {/* Request Buttons (Simplified) */}
                                                 {msg.request_id && !isMe && msg.request_status === 'pending' && (
                                                     <div className="mt-2 pt-2 border-t flex gap-2">
-                                                        <button onClick={() => api.splits.respondToRequest(msg.request_id!, 'accepted').then(() => fetchChatMessages(activeChatId!))} className="bg-green-500 text-white px-3 py-1 rounded text-xs">Accept</button>
-                                                        <button onClick={() => api.splits.respondToRequest(msg.request_id!, 'rejected').then(() => fetchChatMessages(activeChatId!))} className="bg-gray-200 text-gray-800 px-3 py-1 rounded text-xs">Reject</button>
+                                                        <button onClick={async () => {
+                                                            try {
+                                                                const res = await api.splits.respondToRequest(msg.request_id!, 'accepted');
+                                                                if (res.success) {
+                                                                    setToast({ message: 'Request accepted!', type: 'success' });
+                                                                    setTimeout(() => setToast(null), 3000);
+                                                                    fetchChatMessages(activeChatId!);
+                                                                    fetchInbox();
+                                                                } else {
+                                                                    console.error('Accept failed:', res.message);
+                                                                    setToast({ message: res.message || 'Failed to accept', type: 'error' });
+                                                                    setTimeout(() => setToast(null), 3000);
+                                                                }
+                                                            } catch (err: any) {
+                                                                console.error('Accept error:', err);
+                                                                setToast({ message: err.message || 'Something went wrong', type: 'error' });
+                                                                setTimeout(() => setToast(null), 3000);
+                                                            }
+                                                        }} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">Accept</button>
+                                                        <button onClick={async () => {
+                                                            try {
+                                                                const res = await api.splits.respondToRequest(msg.request_id!, 'rejected');
+                                                                if (res.success) {
+                                                                    setToast({ message: 'Request rejected.', type: 'info' });
+                                                                    setTimeout(() => setToast(null), 3000);
+                                                                    fetchChatMessages(activeChatId!);
+                                                                    fetchInbox();
+                                                                } else {
+                                                                    console.error('Reject failed:', res.message);
+                                                                    setToast({ message: res.message || 'Failed to reject', type: 'error' });
+                                                                    setTimeout(() => setToast(null), 3000);
+                                                                }
+                                                            } catch (err: any) {
+                                                                console.error('Reject error:', err);
+                                                                setToast({ message: err.message || 'Something went wrong', type: 'error' });
+                                                                setTimeout(() => setToast(null), 3000);
+                                                            }
+                                                        }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs font-medium transition-colors">Reject</button>
                                                     </div>
                                                 )}
                                                 <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-100' : 'text-gray-400'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>

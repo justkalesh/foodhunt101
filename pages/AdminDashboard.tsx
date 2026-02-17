@@ -34,7 +34,14 @@ const AdminDashboard: React.FC = () => {
         }
         const fetchStats = async () => {
             const res = await api.admin.getStats();
-            if (res.success && res.data) setStats(res.data);
+            if (res.success && res.data) {
+                // Map API response to component's expected property names
+                setStats({
+                    totalUsers: res.data.users || 0,
+                    totalVendors: res.data.vendors || 0,
+                    totalReviews: res.data.reviews || 0
+                });
+            }
             setLoading(false);
         };
         fetchStats();
@@ -44,7 +51,13 @@ const AdminDashboard: React.FC = () => {
         setActionLoading(true);
         const res = await seedDatabase();
         const statsRes = await api.admin.getStats();
-        if (statsRes.success && statsRes.data) setStats(statsRes.data);
+        if (statsRes.success && statsRes.data) {
+            setStats({
+                totalUsers: statsRes.data.users || 0,
+                totalVendors: statsRes.data.vendors || 0,
+                totalReviews: statsRes.data.reviews || 0
+            });
+        }
         setActionLoading(false);
         // @ts-ignore
         setSeedResult(res.message || 'Database seeded successfully!');

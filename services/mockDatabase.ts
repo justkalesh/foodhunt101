@@ -842,7 +842,10 @@ export const api = {
           }
 
           await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
-          await supabase.from('users').update({ active_split_id: req.split_id }).eq('id', req.requester_id);
+
+          // Note: We don't update the requester's active_split_id here because
+          // RLS only allows users to update their own record. The requester's
+          // participation is tracked via the split_participants table instead.
 
           return { success: true, message: 'Request accepted, user joined.' };
         }
@@ -1069,7 +1072,31 @@ export const api = {
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        return { success: true, message: 'Fetched messages.', data: data as Message[] };
+
+        // Enrich messages that have a request_id with the actual request status
+        const messages = (data || []) as Message[];
+        const requestIds = messages.filter(m => m.request_id).map(m => m.request_id!);
+
+        if (requestIds.length > 0) {
+          const { data: requests } = await supabase
+            .from('split_join_requests')
+            .select('id, status')
+            .in('id', requestIds);
+
+          if (requests) {
+            const statusMap: Record<string, string> = {};
+            for (const req of requests) {
+              statusMap[req.id] = req.status;
+            }
+            for (const msg of messages) {
+              if (msg.request_id && statusMap[msg.request_id]) {
+                msg.request_status = statusMap[msg.request_id] as 'pending' | 'accepted' | 'rejected';
+              }
+            }
+          }
+        }
+
+        return { success: true, message: 'Fetched messages.', data: messages };
       } catch (error: any) {
         return { success: false, message: error.message };
       }
