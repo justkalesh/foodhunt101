@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
-  const { login, signInWithGoogle, isLoading } = useAuth();
+  const { login, signInWithGoogle, resetPassword, isLoading } = useAuth();
   const navigate = useNavigate();
 
   // Pre-fill email if coming from Register page
@@ -79,7 +79,20 @@ const Login: React.FC = () => {
               <button
                 type="button"
                 className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                onClick={() => alert("Password reset functionality would be implemented here (e.g., using sendPasswordResetEmail).")}
+                onClick={async () => {
+                  if (!email) {
+                    setError('Please enter your email address first, then click Forgot Password.');
+                    return;
+                  }
+                  setError('');
+                  const res = await resetPassword(email);
+                  if (res.success) {
+                    setError('');
+                    alert(res.message);
+                  } else {
+                    setError(res.message);
+                  }
+                }}
               >
                 Forgot Password?
               </button>

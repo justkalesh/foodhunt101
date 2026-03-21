@@ -38,6 +38,7 @@ interface AuthContextType {
   completeGoogleSignup: (data: any, firebaseUser: any) => Promise<AuthResponse>;
   logout: () => void;
   updateUser: (user: User) => void;
+  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -270,12 +271,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNeedsCompletion(false);
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/#/reset-password`,
+      });
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: 'Password reset email sent! Check your inbox.' };
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  };
+
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, needsCompletion, isEmailVerified, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, needsCompletion, isEmailVerified, login, signup, signInWithGoogle, completeGoogleSignup, logout, updateUser, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
