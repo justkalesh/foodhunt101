@@ -65,6 +65,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth State Change:", event, session?.user?.id);
+
+      // Handle password recovery — redirect to reset page instead of logging in
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.hash = '#/reset-password';
+        return;
+      }
+
       if (session?.user) {
         setIsEmailVerified(!!session.user.email_confirmed_at);
         fetchProfile(session.user.id);
@@ -274,7 +281,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/#/reset-password`,
+        redirectTo: window.location.origin,
       });
       if (error) return { success: false, message: error.message };
       return { success: true, message: 'Password reset email sent! Check your inbox.' };
