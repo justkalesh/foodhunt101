@@ -30,6 +30,7 @@ import AboutUs from './pages/AboutUs';
 import OurTeam from './pages/OurTeam';
 import Careers from './pages/Careers';
 import HelpCenter from './pages/HelpCenter';
+import ResetPassword from './pages/ResetPassword';
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -78,6 +79,7 @@ const AppContent: React.FC = () => {
               <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
               <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
               <Route path="/complete-profile" element={<PageTransition><CompleteProfile /></PageTransition>} />
+              <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
               <Route path="/vendors" element={<PageTransition><VendorList /></PageTransition>} />
               <Route path="/vendors/:id" element={<PageTransition><VendorDetail /></PageTransition>} />
               <Route path="/splits" element={<PageTransition><MealSplits /></PageTransition>} />
