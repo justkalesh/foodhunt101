@@ -61,7 +61,23 @@ const Profile: React.FC = () => {
             if (targetUser.active_split_id) {
                const splitRes = await api.splits.getById(targetUser.active_split_id);
                if (splitRes.success && splitRes.data) {
-                  setActiveSplit(splitRes.data);
+                  const split = splitRes.data;
+                  const isExpired = split.split_time && new Date(split.split_time) < new Date();
+                  if (split.is_closed || isExpired) {
+                     setActiveSplit(null);
+                     if (isOwnProfile) {
+                        await api.users.updateProfile(targetUser.id, { active_split_id: null } as any);
+                        updateUser({ ...targetUser, active_split_id: null });
+                     }
+                  } else {
+                     setActiveSplit(split);
+                  }
+               } else {
+                  setActiveSplit(null);
+                  if (isOwnProfile) {
+                     await api.users.updateProfile(targetUser.id, { active_split_id: null } as any);
+                     updateUser({ ...targetUser, active_split_id: null });
+                  }
                }
             } else {
                setActiveSplit(null);

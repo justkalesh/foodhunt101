@@ -52,6 +52,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Check if this is a password recovery redirect (flag set in index.html)
+      if (sessionStorage.getItem('supabase_password_recovery') === 'true') {
+        sessionStorage.removeItem('supabase_password_recovery');
+        if (session) {
+          // Session exists from recovery token — redirect to reset page
+          window.location.hash = '#/reset-password';
+          setIsLoading(false);
+          return;
+        }
+      }
+
       if (session?.user) {
         setIsEmailVerified(!!session.user.email_confirmed_at);
         fetchProfile(session.user.id);

@@ -7,6 +7,16 @@
   <title>Food-Hunt</title>
   <link rel="icon" type="image/png" href="/logo.png" />
 
+  <!-- Supabase Password Recovery detection - runs BEFORE React/HashRouter -->
+  <script>
+    (function () {
+      var hash = window.location.hash;
+      if (hash && hash.indexOf('type=recovery') !== -1) {
+        sessionStorage.setItem('supabase_password_recovery', 'true');
+      }
+    })();
+  </script>
+
   <!-- Instagram/WebView detection - runs FIRST before any external scripts -->
   <script>
     (function () {
