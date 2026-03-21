@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && npx wrangler pages deploy dist --project-name food-hunt --compatibility-flags nodejs_compat --compatibility-date 2024-09-23"
+    "deploy": "vite build && npx wrangler pages deploy dist --project-name food-hunt"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
