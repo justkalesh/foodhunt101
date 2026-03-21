@@ -208,12 +208,7 @@ const VendorList: React.FC = () => {
                         <Sparkles size={12} className="fill-current" /> Hidden Gem
                       </span>
                     )}
-                    {vendor.rating_avg && (
-                      <span className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 text-gray-900 dark:text-white">
-                        <Star size={12} className="text-yellow-400 fill-current" />
-                        {vendor.rating_avg.toFixed(1)}
-                      </span>
-                    )}
+
                   </div>
 
                   {/* Rush Level Badge */}
@@ -228,9 +223,24 @@ const VendorList: React.FC = () => {
                 <div className="relative z-10">
                   {/* Header Row */}
                   <div className="mb-3">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate">
-                      {vendor.name}
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate">
+                        {vendor.name}
+                      </h3>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            className={
+                              i < Math.round(vendor.rating_avg || 0)
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-200 dark:text-gray-600'
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm">
                       <MapPin size={12} />
                       <span className="truncate">{vendor.location}</span>
