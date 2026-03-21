@@ -534,13 +534,13 @@ const VendorDetail: React.FC = () => {
                                 ) : (
                                     <div className="space-y-4">
                                         {(() => {
-                                            const grouped = menuItems.reduce((acc, item) => {
+                                            const grouped = menuItems.reduce<Record<string, MenuItem[]>>((acc, item) => {
                                                 const cat = item.category || 'General';
                                                 if (!acc[cat]) acc[cat] = [];
                                                 acc[cat].push(item);
                                                 return acc;
-                                            }, {} as Record<string, MenuItem[]>);
-                                            return Object.entries(grouped).map(([category, items]) => (
+                                            }, {});
+                                            return Object.entries(grouped).map(([category, items]: [string, MenuItem[]]) => (
                                                 <div key={category}><CategorySection title={category} items={items} /></div>
                                             ));
                                         })()}

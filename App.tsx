@@ -23,7 +23,7 @@ import AdminVendors from './pages/AdminVendors';
 import AdminUsers from './pages/AdminUsers';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import CookieBanner from './components/CookieBanner';
-import { Analytics } from "@vercel/analytics/react";
+
 
 // WIP Pages
 import AboutUs from './pages/AboutUs';
@@ -119,7 +119,7 @@ const App: React.FC = () => {
       <AuthProvider>
         <Router>
           <AppContent />
-          <Analytics />
+
         </Router>
       </AuthProvider>
     </ThemeProvider>

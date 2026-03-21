@@ -1,0 +1,10 @@
+name = "food-hunt"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Non-secret env vars can go here (optional)
+# Secret env vars should be set in Cloudflare Dashboard: Settings → Environment Variables
+
+# Pages-specific config
+# Build output is 'dist' from Vite
