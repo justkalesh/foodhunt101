@@ -6,6 +6,7 @@ import { api } from '../services/mockDatabase';
 import { User, UserRole } from '../types';
 import { Lock, Unlock, Plus, MessageSquare, X, Bell } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
+import ImageUpload from '../components/ui/ImageUpload';
 
 const AdminUsers: React.FC = () => {
   const { user } = useAuth();
@@ -303,8 +304,14 @@ const AdminUsers: React.FC = () => {
                 <input value={editFormData.name} onChange={e => setEditFormData({ ...editFormData, name: e.target.value })} className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:text-white dark:border-slate-700" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">PFP URL</label>
-                <input value={editFormData.pfp_url} onChange={e => setEditFormData({ ...editFormData, pfp_url: e.target.value })} className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:text-white dark:border-slate-700" />
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Profile Picture</label>
+                <ImageUpload
+                  folder="profiles"
+                  compact
+                  currentUrl={editFormData.pfp_url || undefined}
+                  onUpload={(url) => setEditFormData({ ...editFormData, pfp_url: url })}
+                  onDelete={() => setEditFormData({ ...editFormData, pfp_url: '' })}
+                />
               </div>
               <button type="submit" className="w-full bg-primary-600 text-white py-2 rounded-xl font-bold">Save Changes</button>
             </form>

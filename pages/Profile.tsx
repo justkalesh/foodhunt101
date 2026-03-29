@@ -9,6 +9,7 @@ import { Settings, Star, Utensils, Award, Edit3, Save, Sun, Moon, Monitor, Messa
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import ImageUpload from '../components/ui/ImageUpload';
 
 const Profile: React.FC = () => {
    const { user, logout, updateUser } = useAuth();
@@ -175,7 +176,7 @@ const Profile: React.FC = () => {
                      </div>
                      {isEditing && (
                         <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                           <span className="text-white text-xs font-medium">Change URL</span>
+                           <span className="text-white text-xs font-medium">Change Photo</span>
                         </div>
                      )}
                   </div>
@@ -233,12 +234,13 @@ const Profile: React.FC = () => {
 
                      {isEditing && (
                         <div className="mt-4">
-                           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Profile Photo URL</label>
-                           <input
-                              className="w-full text-sm px-4 py-2.5 border rounded-xl bg-white dark:bg-slate-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-primary-500"
-                              placeholder="https://..."
-                              value={formData.pfp_url}
-                              onChange={(e) => setFormData({ ...formData, pfp_url: e.target.value })}
+                           <ImageUpload
+                              label="Profile Photo"
+                              folder="profiles"
+                              compact
+                              currentUrl={formData.pfp_url || undefined}
+                              onUpload={(url) => setFormData({ ...formData, pfp_url: url })}
+                              onDelete={() => setFormData({ ...formData, pfp_url: '' })}
                            />
                         </div>
                      )}

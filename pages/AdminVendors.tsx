@@ -6,6 +6,7 @@ import { api } from '../services/mockDatabase';
 import { UserRole, Vendor, MenuItem } from '../types';
 import { Trash2, Edit, Plus, X, AlertTriangle, Utensils, Star, Camera, Loader2 } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
+import ImageUpload from '../components/ui/ImageUpload';
 
 const AdminVendors: React.FC = () => {
   const { user } = useAuth();
@@ -325,9 +326,9 @@ const AdminVendors: React.FC = () => {
     setCurrentVendor({
       name: '', description: '', location: '', cuisine: '',
       origin_tag: 'North', rush_level: 'mid',
-      logo_url: 'https://picsum.photos/200',
-      menu_image_urls: ['https://picsum.photos/800/600'],
-      contact_number: '1234567890',
+      logo_url: '',
+      menu_image_urls: [],
+      contact_number: '',
       popularity_score: 80, is_active: true,
       sort_order: 999, is_featured: false
     });
@@ -499,51 +500,44 @@ const AdminVendors: React.FC = () => {
                 <input name="contact_number" type="text" value={currentVendor.contact_number || ''} onChange={handleChange} className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo URL</label>
-                <input name="logo_url" type="text" value={currentVendor.logo_url} onChange={handleChange} className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+                <ImageUpload
+                  label="Vendor Logo"
+                  folder="logos"
+                  currentUrl={currentVendor.logo_url || undefined}
+                  onUpload={(url) => setCurrentVendor({ ...currentVendor, logo_url: url })}
+                  onDelete={() => setCurrentVendor({ ...currentVendor, logo_url: '' })}
+                />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Menu Image URLs</label>
-                <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Menu Images</label>
+                <div className="grid grid-cols-2 gap-3">
                   {(currentVendor.menu_image_urls || []).map((url, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={url}
-                        onChange={(e) => {
-                          const newUrls = [...(currentVendor.menu_image_urls || [])];
-                          newUrls[index] = e.target.value;
-                          setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
-                        }}
-                        placeholder={`Image URL ${index + 1}`}
-                        className="flex-1 p-2 border rounded-xl dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newUrls = [...(currentVendor.menu_image_urls || [])];
-                          newUrls.splice(index, 1);
-                          setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
-                        }}
-                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                        title="Remove Image"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
+                    <ImageUpload
+                      key={index}
+                      folder="menus"
+                      currentUrl={url || undefined}
+                      onUpload={(newUrl) => {
+                        const newUrls = [...(currentVendor.menu_image_urls || [])];
+                        newUrls[index] = newUrl;
+                        setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
+                      }}
+                      onDelete={() => {
+                        const newUrls = [...(currentVendor.menu_image_urls || [])];
+                        newUrls.splice(index, 1);
+                        setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
+                      }}
+                    />
                   ))}
+                  {/* Add new image slot */}
+                  <ImageUpload
+                    folder="menus"
+                    label=""
+                    onUpload={(url) => {
+                      const newUrls = [...(currentVendor.menu_image_urls || []), url];
+                      setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
+                    }}
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newUrls = [...(currentVendor.menu_image_urls || [])];
-                    newUrls.push('');
-                    setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
-                  }}
-                  className="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-                >
-                  <Plus size={16} /> Add Another Image
-                </button>
               </div>
               <div className="md:col-span-2 pt-4 flex gap-4">
                 <button type="submit" className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl font-bold transition">
