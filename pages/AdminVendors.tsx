@@ -323,6 +323,9 @@ const AdminVendors: React.FC = () => {
   };
 
   const openAddModal = () => {
+    const nextSortOrder = vendors.length > 0
+      ? Math.max(...vendors.map(v => v.sort_order || 0)) + 1
+      : 1;
     setCurrentVendor({
       name: '', description: '', location: '', cuisine: '',
       origin_tag: 'North', rush_level: 'mid',
@@ -330,7 +333,7 @@ const AdminVendors: React.FC = () => {
       menu_image_urls: [],
       contact_number: '',
       popularity_score: 80, is_active: true,
-      sort_order: 999, is_featured: false
+      sort_order: nextSortOrder, is_featured: false
     });
     setIsEditing(false);
     setIsModalOpen(true);
