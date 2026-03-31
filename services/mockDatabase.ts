@@ -808,9 +808,22 @@ export const api = {
         const { data: req, error: fetchError } = await supabase.from('split_join_requests').select('*').eq('id', requestId).single();
         if (fetchError || !req) return { success: false, message: 'Request not found.' };
 
+        // Get the message linked to this request (to find the conversation)
+        const { data: requestMessage } = await supabase.from('messages').select('id, conversation_id, sender_id, receiver_id').eq('request_id', requestId).single();
+
         if (status === 'rejected') {
+          // Update request status
           await supabase.from('split_join_requests').update({ status: 'rejected' }).eq('id', requestId);
-          return { success: true, message: 'Request rejected.' };
+
+          // Delete the entire conversation between these users
+          if (requestMessage?.conversation_id) {
+            // First delete all messages in the conversation
+            await supabase.from('messages').delete().eq('conversation_id', requestMessage.conversation_id);
+            // Then delete the conversation itself
+            await supabase.from('conversations').delete().eq('id', requestMessage.conversation_id);
+          }
+
+          return { success: true, message: 'Request declined. Chat removed.' };
         }
 
         if (status === 'accepted') {
@@ -843,9 +856,23 @@ export const api = {
 
           await supabase.from('split_join_requests').update({ status: 'accepted' }).eq('id', requestId);
 
-          // Note: We don't update the requester's active_split_id here because
-          // RLS only allows users to update their own record. The requester's
-          // participation is tracked via the split_participants table instead.
+          // Send auto-acceptance message to the requester
+          if (requestMessage?.conversation_id) {
+            const acceptMessage = `Hey! Great news 🎉 I'd be delighted to have you join my split for ${split.dish_name}! See you there! 🍕`;
+
+            await supabase.from('messages').insert({
+              conversation_id: requestMessage.conversation_id,
+              sender_id: split.creator_id,
+              receiver_id: req.requester_id,
+              content: acceptMessage
+            });
+
+            // Update conversation last_message
+            await supabase.from('conversations').update({
+              last_message: { content: acceptMessage, sender_id: split.creator_id, created_at: new Date().toISOString(), is_read: false },
+              updated_at: new Date().toISOString()
+            }).eq('id', requestMessage.conversation_id);
+          }
 
           return { success: true, message: 'Request accepted, user joined.' };
         }
@@ -1080,17 +1107,39 @@ export const api = {
         if (requestIds.length > 0) {
           const { data: requests } = await supabase
             .from('split_join_requests')
-            .select('id, status')
+            .select('id, status, split_id')
             .in('id', requestIds);
 
           if (requests) {
             const statusMap: Record<string, string> = {};
+            const splitIdMap: Record<string, string> = {};
             for (const req of requests) {
               statusMap[req.id] = req.status;
+              splitIdMap[req.id] = req.split_id;
             }
+
+            // Fetch split_time for each referenced split
+            const uniqueSplitIds = [...new Set(Object.values(splitIdMap))];
+            const splitTimeMap: Record<string, string> = {};
+            if (uniqueSplitIds.length > 0) {
+              const { data: splits } = await supabase
+                .from('meal_splits')
+                .select('id, split_time')
+                .in('id', uniqueSplitIds);
+              if (splits) {
+                for (const s of splits) {
+                  if (s.split_time) splitTimeMap[s.id] = s.split_time;
+                }
+              }
+            }
+
             for (const msg of messages) {
               if (msg.request_id && statusMap[msg.request_id]) {
                 msg.request_status = statusMap[msg.request_id] as 'pending' | 'accepted' | 'rejected';
+                const splitId = splitIdMap[msg.request_id];
+                if (splitId && splitTimeMap[splitId]) {
+                  msg.split_time = splitTimeMap[splitId];
+                }
               }
             }
           }

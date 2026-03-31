@@ -601,14 +601,14 @@ const Inbox: React.FC = () => {
                                                 : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
                                                 }`}>
                                                 <div className="break-words">{renderMessageContent(msg.content, isMe)}</div>
-                                                {/* Request Buttons (Simplified) */}
-                                                {msg.request_id && !isMe && msg.request_status === 'pending' && (
+                                                {/* Request Buttons - only show if pending AND split hasn't expired */}
+                                                {msg.request_id && !isMe && msg.request_status === 'pending' && !(msg.split_time && new Date(msg.split_time) < new Date()) && (
                                                     <div className="mt-2 pt-2 border-t flex gap-2">
                                                         <button onClick={async () => {
                                                             try {
                                                                 const res = await api.splits.respondToRequest(msg.request_id!, 'accepted');
                                                                 if (res.success) {
-                                                                    setToast({ message: 'Request accepted!', type: 'success' });
+                                                                    setToast({ message: 'Request accepted! 🎉', type: 'success' });
                                                                     setTimeout(() => setToast(null), 3000);
                                                                     fetchChatMessages(activeChatId!);
                                                                     fetchInbox();
@@ -627,13 +627,15 @@ const Inbox: React.FC = () => {
                                                             try {
                                                                 const res = await api.splits.respondToRequest(msg.request_id!, 'rejected');
                                                                 if (res.success) {
-                                                                    setToast({ message: 'Request rejected.', type: 'info' });
+                                                                    setToast({ message: 'Request declined. Chat removed.', type: 'info' });
                                                                     setTimeout(() => setToast(null), 3000);
-                                                                    fetchChatMessages(activeChatId!);
+                                                                    // Chat is deleted, go back to inbox
+                                                                    setActiveChatId(null);
+                                                                    setActiveMessages([]);
                                                                     fetchInbox();
                                                                 } else {
                                                                     console.error('Reject failed:', res.message);
-                                                                    setToast({ message: res.message || 'Failed to reject', type: 'error' });
+                                                                    setToast({ message: res.message || 'Failed to decline', type: 'error' });
                                                                     setTimeout(() => setToast(null), 3000);
                                                                 }
                                                             } catch (err: any) {
@@ -641,7 +643,13 @@ const Inbox: React.FC = () => {
                                                                 setToast({ message: err.message || 'Something went wrong', type: 'error' });
                                                                 setTimeout(() => setToast(null), 3000);
                                                             }
-                                                        }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs font-medium transition-colors">Reject</button>
+                                                        }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs font-medium transition-colors">Decline</button>
+                                                    </div>
+                                                )}
+                                                {/* Show expired label if split time passed */}
+                                                {msg.request_id && !isMe && msg.request_status === 'pending' && msg.split_time && new Date(msg.split_time) < new Date() && (
+                                                    <div className="mt-2 pt-2 border-t">
+                                                        <span className="text-xs text-gray-400 italic">Split expired</span>
                                                     </div>
                                                 )}
                                                 <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-100' : 'text-gray-400'}`}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>

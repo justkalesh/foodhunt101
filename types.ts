@@ -155,4 +155,5 @@ export interface Message {
   created_at: string;
   request_id?: string; // Optional link to a join request
   request_status?: 'pending' | 'accepted' | 'rejected'; // Computed field for UI
+  split_time?: string; // Computed: the split's scheduled time (for expiry check)
 }
