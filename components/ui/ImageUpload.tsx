@@ -5,26 +5,31 @@ import { uploadImage, deleteImage } from '../../utils/uploadImage';
 interface ImageUploadProps {
   currentUrl?: string;
   onUpload: (url: string) => void;
+  onMultiUpload?: (urls: string[]) => void; // For multiple file upload
   onDelete?: () => void;
   folder: 'logos' | 'menus' | 'profiles';
   label?: string;
   className?: string;
-  compact?: boolean; // Smaller variant for inline use
+  compact?: boolean;
+  multiple?: boolean; // Allow selecting multiple files
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
   currentUrl,
   onUpload,
+  onMultiUpload,
   onDelete,
   folder,
   label = 'Upload Image',
   className = '',
   compact = false,
+  multiple = false,
 }) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -65,18 +70,59 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   }, [folder, currentUrl, onUpload]);
 
+  const handleMultipleFiles = useCallback(async (files: File[]) => {
+    const validFiles = files.filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024);
+    if (validFiles.length === 0) {
+      setError('No valid image files selected.');
+      return;
+    }
+
+    setError(null);
+    setUploading(true);
+    setUploadProgress(`Uploading 0/${validFiles.length}...`);
+
+    const uploadedUrls: string[] = [];
+    try {
+      for (let i = 0; i < validFiles.length; i++) {
+        setUploadProgress(`Uploading ${i + 1}/${validFiles.length}...`);
+        const url = await uploadImage(validFiles[i], folder);
+        uploadedUrls.push(url);
+      }
+      onMultiUpload?.(uploadedUrls);
+    } catch (err: any) {
+      setError(`Upload failed after ${uploadedUrls.length}/${validFiles.length}: ${err.message}`);
+      // Still report any that succeeded
+      if (uploadedUrls.length > 0) onMultiUpload?.(uploadedUrls);
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
+  }, [folder, onMultiUpload]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (multiple && files.length > 1) {
+      handleMultipleFiles(Array.from(files));
+    } else {
+      handleFile(files[0]);
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    if (multiple && files.length > 1) {
+      handleMultipleFiles(Array.from(files));
+    } else {
+      handleFile(files[0]);
+    }
+  }, [handleFile, handleMultipleFiles, multiple]);
 
   const handleRemove = async () => {
     if (currentUrl) {
@@ -180,7 +226,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               <div className="absolute inset-3 flex items-center justify-center bg-black/50 rounded-lg">
                 <div className="text-center text-white">
                   <Loader2 size={28} className="animate-spin mx-auto mb-2" />
-                  <p className="text-sm font-medium">Compressing & uploading...</p>
+                  <p className="text-sm font-medium">{uploadProgress || 'Compressing & uploading...'}</p>
                 </div>
               </div>
             )}
@@ -203,10 +249,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               <Upload size={22} className={`${dragOver ? 'text-primary-500' : 'text-gray-400'}`} />
             </div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {dragOver ? 'Drop image here' : 'Click or drag & drop'}
+              {uploading ? (uploadProgress || 'Uploading...') : dragOver ? 'Drop image(s) here' : multiple ? 'Click or drag & drop multiple images' : 'Click or drag & drop'}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              JPG, PNG up to 10MB • Auto-compressed
+              JPG, PNG up to 10MB • Auto-compressed{multiple ? ' • Select multiple' : ''}
             </p>
           </div>
         )}
@@ -216,6 +262,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple={multiple}
         onChange={handleInputChange}
         className="hidden"
       />

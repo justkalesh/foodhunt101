@@ -61,10 +61,10 @@ const TermsAndConditions: React.FC = () => {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">6. User Content (Profile Pictures)</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">6. User Content (Image Uploads)</h2>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li><strong>Image Links:</strong> You are permitted to provide links for your profile pictures (PFPs). You must ensure that any link you provide directs to content you have the right to use.</li>
-                            <li><strong>Prohibited Links:</strong> You may not provide links to content that is offensive, pornographic, illegal, or contains malware/viruses. We reserve the right to remove any such links and ban the offending user.</li>
+                            <li><strong>Image Uploads:</strong> You may upload images for your profile picture, vendor logos, and menu photos. Uploaded images are automatically compressed and stored securely. You must ensure you own or have the right to use any image you upload.</li>
+                            <li><strong>Prohibited Content:</strong> You may not upload content that is offensive, pornographic, illegal, or contains malware/viruses. We reserve the right to remove any such content and ban the offending user.</li>
                         </ul>
                     </section>
 

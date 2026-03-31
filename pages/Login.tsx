@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
-  const { login, signInWithGoogle, resetPassword, isLoading } = useAuth();
+  const { login, signInWithGoogle, resetPassword, logout, isLoading } = useAuth();
   const navigate = useNavigate();
 
   // Pre-fill email if coming from Register page
@@ -33,11 +33,7 @@ const Login: React.FC = () => {
     if (res.success && res.user) {
       if (res.user.is_disabled) {
         setError("Your account has been disabled/banned. Please contact admin at foodhunt101lpu@gmail.com for appeal.");
-        // Should we logout immediately to clear context? 
-        // Since `login` sets user in context, we might need to manually logout?
-        // But context `login` usually sets it. 
-        // Let's assume the user can't navigate anywhere else because we don't call `navigate`.
-        // Ideally we should call `logout()` but it might be async.
+        await logout();
         return;
       }
 

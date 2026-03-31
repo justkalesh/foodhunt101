@@ -123,23 +123,36 @@ const AdminVendors: React.FC = () => {
     setAddingMenuItem(false);
   };
 
-  const handleScanMenu = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedVendorForMenu) return;
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
+  const handleScanMenu = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedVendorForMenu) return;
+
+    const imageFiles = [...files].filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      alert('Please select image file(s).');
       return;
     }
 
     setIsScanning(true);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64String = (reader.result as string).split(',')[1];
+      let totalAdded = 0;
+
+      for (let fi = 0; fi < imageFiles.length; fi++) {
+        const file = imageFiles[fi];
 
         try {
+          const base64String = await readFileAsBase64(file);
+
           const response = await fetch('/api/scan-menu', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -175,28 +188,24 @@ const AdminVendors: React.FC = () => {
               }
             }
             setMenuItems(prev => [...prev, ...addedItems]);
-            alert(`Successfully added ${addedItems.length} menu items!`);
+            totalAdded += addedItems.length;
           } else {
-            console.error('API Response:', data);
-            alert(`Error: ${data.error}\nDetails: ${data.details || 'No details available'}`);
+            console.error(`Scan failed for image ${fi + 1}:`, data);
           }
         } catch (error) {
-          console.error('Scan API error:', error);
-          alert(`Failed to process the image.\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          console.error(`Error scanning image ${fi + 1}:`, error);
         }
+      }
 
-        setIsScanning(false);
-      };
-
-      reader.onerror = () => {
-        alert('Failed to read the image file.');
-        setIsScanning(false);
-      };
-
-      reader.readAsDataURL(file);
+      if (totalAdded > 0) {
+        alert(`Successfully added ${totalAdded} menu items from ${imageFiles.length} image(s)!`);
+      } else {
+        alert('No menu items could be extracted from the image(s).');
+      }
     } catch (error) {
       console.error('File processing error:', error);
-      alert('Failed to process the image.');
+      alert('Failed to process the image(s).');
+    } finally {
       setIsScanning(false);
     }
 
@@ -531,12 +540,17 @@ const AdminVendors: React.FC = () => {
                       }}
                     />
                   ))}
-                  {/* Add new image slot */}
+                  {/* Add new image(s) slot */}
                   <ImageUpload
                     folder="menus"
                     label=""
+                    multiple
                     onUpload={(url) => {
                       const newUrls = [...(currentVendor.menu_image_urls || []), url];
+                      setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
+                    }}
+                    onMultiUpload={(urls) => {
+                      const newUrls = [...(currentVendor.menu_image_urls || []), ...urls];
                       setCurrentVendor({ ...currentVendor, menu_image_urls: newUrls });
                     }}
                   />

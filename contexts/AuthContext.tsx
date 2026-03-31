@@ -75,7 +75,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth State Change:", event, session?.user?.id);
 
       // Handle password recovery — redirect to reset page instead of logging in
       if (event === 'PASSWORD_RECOVERY') {
@@ -103,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(res.data);
       setNeedsCompletion(false);
     } else {
-      console.log("User authenticated but profile not found. Redirecting to completion.");
       // User is authenticated but has no profile -> Needs completion
       setNeedsCompletion(true);
       setUser(null);
@@ -180,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await api.messages.send(adminRes.data.id, newUser.id, `Welcome to Food Hunt! 🍕\n\nWe're thrilled to have you join our campus food community. Start exploring vendors, join meal splits, and save money while making new friends!\n\nHappy eating!`);
         }
       } catch (e) {
-        console.log("Welcome msg check failed or ignored", e);
+        // Welcome message is non-critical, silently ignore failures
       }
 
       // Notify Admin
@@ -210,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       } catch (e) {
-        console.log("Admin notify failed", e);
+        // Admin notification is non-critical, silently ignore failures
       }
 
       setUser(newUser);
