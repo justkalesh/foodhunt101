@@ -353,15 +353,37 @@ export const api = {
           .order('sort_order', { ascending: true });
         if (error) throw error;
 
+        // Fetch all reviews to compute accurate rating averages
+        const { data: allReviews } = await supabase.from('reviews').select('vendor_id, rating');
+        const ratingMap: Record<string, { sum: number; count: number }> = {};
+        if (allReviews) {
+          for (const review of allReviews) {
+            if (!ratingMap[review.vendor_id]) {
+              ratingMap[review.vendor_id] = { sum: 0, count: 0 };
+            }
+            ratingMap[review.vendor_id].sum += review.rating;
+            ratingMap[review.vendor_id].count += 1;
+          }
+        }
+
         // Calculate dynamic popularity for each vendor
         const vendorsWithPopularity = await Promise.all(
           (data || []).map(async (vendor: any) => {
+            const reviewData = ratingMap[vendor.id];
+            const ratingAvg = reviewData ? reviewData.sum / reviewData.count : 0;
+            const ratingCount = reviewData ? reviewData.count : 0;
+
             const popularity = await calculatePopularity(
               vendor.id,
-              vendor.rating_avg || 0,
-              vendor.rating_count || 0
+              ratingAvg,
+              ratingCount
             );
-            return { ...vendor, popularity_score: popularity } as Vendor;
+            return {
+              ...vendor,
+              rating_avg: Math.round(ratingAvg * 10) / 10, // Round to 1 decimal
+              rating_count: ratingCount,
+              popularity_score: popularity
+            } as Vendor;
           })
         );
 
