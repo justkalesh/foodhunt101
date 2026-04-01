@@ -622,7 +622,7 @@ const AdminVendors: React.FC = () => {
                   ) : (
                     <>
                       <Camera size={18} />
-                      Scan Menu Image
+                      Scan Menu Images
                     </>
                   )}
                 </button>
@@ -630,6 +630,7 @@ const AdminVendors: React.FC = () => {
                   type="file"
                   ref={fileInputRef}
                   accept="image/*"
+                  multiple
                   onChange={handleScanMenu}
                   className="hidden"
                 />
