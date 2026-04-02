@@ -3,12 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import AadhaarVerification from '../components/AadhaarVerification';
 
 const CompleteProfile: React.FC = () => {
     const navigate = useNavigate();
     const { completeGoogleSignup } = useAuth();
-    // User arrives here via OAuth redirect when needsCompletion is true
-    // We fetch the current Supabase session to get user info
 
     const [formData, setFormData] = useState({
         name: '',
@@ -16,25 +15,21 @@ const CompleteProfile: React.FC = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
 
     useEffect(() => {
         const checkAuth = async () => {
-            // 1. Check Supabase Session
             const { data: { user } } = await supabase.auth.getUser();
-
             if (user) {
                 setFormData(prev => ({
                     ...prev,
                     name: user.user_metadata?.full_name || '',
                 }));
             } else {
-                // No user found, redirect to login
                 navigate('/login');
             }
         };
-
         checkAuth();
-
     }, [navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -52,22 +47,64 @@ const CompleteProfile: React.FC = () => {
         }
 
         setLoading(true);
-        // We reuse completeGoogleSignup interface but pass the Supabase user
         const res = await completeGoogleSignup(formData, user);
         setLoading(false);
 
         if (res.success) {
-            // Navigation handled by App.tsx redirect logic (needsCompletion becoming false)
-            // or we can force it
-            navigate('/');
+            // Show verification step instead of navigating immediately
+            setShowVerification(true);
         } else {
             setError(res.message);
         }
     };
 
+    // Verification step
+    if (showVerification) {
+        return (
+            <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+                <div className="max-w-md w-full">
+                    {/* Step indicator */}
+                    <div className="flex items-center justify-center gap-2 mb-6">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-bold">✓</div>
+                            <span className="text-sm text-green-600 font-medium hidden sm:inline">Profile</span>
+                        </div>
+                        <div className="w-8 h-0.5 bg-green-500" />
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">2</div>
+                            <span className="text-sm text-blue-600 font-medium hidden sm:inline">Verify</span>
+                        </div>
+                    </div>
+
+                    <AadhaarVerification
+                        inline
+                        onVerified={() => {
+                            setTimeout(() => navigate('/'), 1500);
+                        }}
+                        onClose={() => navigate('/')}
+                        onSkip={() => navigate('/')}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
             <div className="max-w-md w-full bg-white dark:bg-dark-800 p-8 rounded-2xl shadow-lg border dark:border-gray-700">
+                {/* Step indicator */}
+                <div className="flex items-center justify-center gap-2 mb-6">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">1</div>
+                        <span className="text-sm text-blue-600 font-medium hidden sm:inline">Profile</span>
+                    </div>
+                    <div className="w-8 h-0.5 bg-gray-300 dark:bg-gray-600" />
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 text-sm font-bold">2</div>
+                        <span className="text-sm text-gray-400 font-medium hidden sm:inline">Verify</span>
+                    </div>
+                </div>
+
                 <h2 className="text-3xl font-bold mb-2 text-center text-gray-900 dark:text-white">Complete Profile</h2>
                 <p className="text-center text-gray-500 mb-6">Please provide a few more details.</p>
 
@@ -100,7 +137,7 @@ const CompleteProfile: React.FC = () => {
                         type="submit" disabled={loading}
                         className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 transition disabled:opacity-50"
                     >
-                        {loading ? 'Save & Continue' : 'Complete Signup'}
+                        {loading ? 'Saving...' : 'Continue →'}
                     </button>
                 </form>
             </div>
@@ -109,3 +146,4 @@ const CompleteProfile: React.FC = () => {
 };
 
 export default CompleteProfile;
+

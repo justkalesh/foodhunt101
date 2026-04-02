@@ -209,6 +209,68 @@ export default defineConfig(({ mode }) => {
               res.end(JSON.stringify({ error: 'Internal Server Error: ' + error.message }));
             }
           });
+
+          // Middleware for /api/aadhaar/send-otp
+          server.middlewares.use('/api/aadhaar/send-otp', async (req, res, next) => {
+            try {
+              const handler = (await import('./api/aadhaar-send-otp.js')).default;
+              const buffers = [];
+              for await (const chunk of req) { buffers.push(chunk); }
+              const data = Buffer.concat(buffers).toString();
+              if (data) {
+                try { // @ts-ignore
+                  req.body = JSON.parse(data);
+                } catch (e) {
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                  return;
+                }
+              } else { // @ts-ignore
+                req.body = {};
+              }
+              // @ts-ignore
+              res.status = (code) => { res.statusCode = code; return res; };
+              // @ts-ignore
+              res.json = (data) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(data)); return res; };
+              // @ts-ignore
+              await handler(req, res);
+            } catch (error) {
+              console.error('Aadhaar Send OTP Middleware Error:', error);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Internal Server Error' }));
+            }
+          });
+
+          // Middleware for /api/aadhaar/verify-otp
+          server.middlewares.use('/api/aadhaar/verify-otp', async (req, res, next) => {
+            try {
+              const handler = (await import('./api/aadhaar-verify-otp.js')).default;
+              const buffers = [];
+              for await (const chunk of req) { buffers.push(chunk); }
+              const data = Buffer.concat(buffers).toString();
+              if (data) {
+                try { // @ts-ignore
+                  req.body = JSON.parse(data);
+                } catch (e) {
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                  return;
+                }
+              } else { // @ts-ignore
+                req.body = {};
+              }
+              // @ts-ignore
+              res.status = (code) => { res.statusCode = code; return res; };
+              // @ts-ignore
+              res.json = (data) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(data)); return res; };
+              // @ts-ignore
+              await handler(req, res);
+            } catch (error) {
+              console.error('Aadhaar Verify OTP Middleware Error:', error);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Internal Server Error' }));
+            }
+          });
         }
       }
     ],

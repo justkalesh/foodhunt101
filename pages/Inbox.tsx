@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../services/supabase';
 import { PageLoading } from '../components/ui/LoadingSpinner';
+import { VerifiedBadge } from '../components/AadhaarVerification';
 
 // ==========================================
 // SQL REQUIREMENTS FOR REALTIME CHAT
@@ -48,6 +49,7 @@ const Inbox: React.FC = () => {
     const [inputText, setInputText] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [fetchedUsers, setFetchedUsers] = useState<Record<string, { name: string, email: string }>>({});
+    const [verifiedUsers, setVerifiedUsers] = useState<Set<string>>(new Set());
     const [showSidebarMenu, setShowSidebarMenu] = useState(false);
 
     // Selection Mode
@@ -133,6 +135,26 @@ const Inbox: React.FC = () => {
             setConversations(res.data);
         }
         setLoading(false);
+
+        // Fetch verification status for all conversation participants
+        if (res.data && res.data.length > 0) {
+            const otherIds = res.data.map(c => {
+                const parts = c.id.split('_');
+                return parts.find((id: string) => id !== user?.id) || parts[0];
+            }).filter(Boolean);
+
+            if (otherIds.length > 0) {
+                const { data: verifiedData } = await supabase
+                    .from('users')
+                    .select('id')
+                    .in('id', otherIds)
+                    .eq('is_verified', true);
+
+                if (verifiedData) {
+                    setVerifiedUsers(new Set(verifiedData.map((u: any) => u.id)));
+                }
+            }
+        }
     };
 
     // ------------------------------------------------------------------
@@ -547,7 +569,10 @@ const Inbox: React.FC = () => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-baseline">
-                                            <h3 className="font-medium truncate">{info.name}</h3>
+                                            <h3 className="font-medium truncate flex items-center gap-1">
+                                                {info.name}
+                                                {verifiedUsers.has(info.id) && <VerifiedBadge size={13} />}
+                                            </h3>
                                             <span className="text-xs text-gray-500">{conv.last_message ? new Date(conv.last_message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                                         </div>
                                         <p className="text-sm text-gray-500 truncate">{conv.last_message?.content || 'No messages'}</p>
@@ -571,7 +596,10 @@ const Inbox: React.FC = () => {
                                         {displayInfo?.avatar ? <img src={displayInfo.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold bg-primary-100 text-primary-600">{displayInfo?.initial}</div>}
                                     </div>
                                     <div>
-                                        <h2 className="font-bold">{displayInfo?.name}</h2>
+                                        <h2 className="font-bold flex items-center gap-1">
+                                            {displayInfo?.name}
+                                            {displayInfo?.id && verifiedUsers.has(displayInfo.id) && <VerifiedBadge size={14} />}
+                                        </h2>
                                         <span className="text-xs text-gray-500">View Profile</span>
                                     </div>
                                 </Link>

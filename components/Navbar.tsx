@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { UserRole } from '../types';
 import { Sun, Moon, Monitor, Utensils, Users, User as UserIcon, LogOut, Menu, Shield } from 'lucide-react';
+import { VerifiedBadge } from './AadhaarVerification';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -81,7 +82,10 @@ const Navbar: React.FC = () => {
             {user ? (
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
-                  <span className="text-sm font-medium dark:text-white">{user.name}</span>
+                  <span className="text-sm font-medium dark:text-white flex items-center gap-1">
+                    {user.name}
+                    {user.is_verified && <VerifiedBadge size={14} />}
+                  </span>
                   <span className="text-xs text-primary-600">{user.loyalty_points || 0} pts</span>
                 </div>
                 <Link to="/profile" className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">

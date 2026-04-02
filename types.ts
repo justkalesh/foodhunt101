@@ -19,6 +19,8 @@ export interface User {
   loyalty_points?: number;
   active_split_id?: string | null;
   pfp_url?: string;
+  is_verified?: boolean;
+  aadhaar_verified_at?: string;
 }
 
 export type OriginTag = 'North' | 'South' | 'West' | 'Chinese' | 'Indo-Chinese' | 'Other';

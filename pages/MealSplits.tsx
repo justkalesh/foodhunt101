@@ -12,6 +12,8 @@ import { Card } from '../components/ui/Card';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { VerifiedBadge } from '../components/AadhaarVerification';
+import { supabase } from '../services/supabase';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -372,6 +374,7 @@ interface MealSplitCardProps {
   onLeave: (split: MealSplit) => void;
   onComplete: (split: MealSplit) => void;
   onDelete: (split: MealSplit) => void;
+  isCreatorVerified?: boolean;
 }
 
 const MealSplitCard: React.FC<MealSplitCardProps> = ({
@@ -384,6 +387,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
   onLeave,
   onComplete,
   onDelete,
+  isCreatorVerified = false,
 }) => {
   // Use participants array instead of people_joined_ids
   const participantIds = (split.participants || []).map(p => p.user_id);
@@ -402,12 +406,21 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
 
           <div className="flex items-start gap-4">
             {/* Vendor Logo / Avatar */}
-            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/50 dark:to-primary-800/50 flex items-center justify-center shadow-inner flex-shrink-0">
-              {vendor?.logo_url ? (
-                <img src={vendor.logo_url} alt={vendor.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
-                  {split.vendor_name[0]}
+            <div className="relative flex-shrink-0">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/50 dark:to-primary-800/50 flex items-center justify-center shadow-inner">
+                {vendor?.logo_url ? (
+                  <img src={vendor.logo_url} alt={vendor.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
+                    {split.vendor_name[0]}
+                  </span>
+                )}
+              </div>
+              {isCreatorVerified && (
+                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-800 shadow-md" title="Verified Creator">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 12.75L11.25 15L15 9.75" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </span>
               )}
             </div>
@@ -561,6 +574,7 @@ const MealSplits: React.FC = () => {
   const [filterDate, setFilterDate] = useState('');
   const [sortBy, setSortBy] = useState<'time' | 'price' | 'slots'>('time');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [verifiedCreators, setVerifiedCreators] = useState<Set<string>>(new Set());
 
   // Confirmation modal states
   const [pendingAction, setPendingAction] = useState<{
@@ -605,6 +619,19 @@ const MealSplits: React.FC = () => {
       }
     }
     setLoading(false);
+
+    // Fetch verification status for all split creators
+    const creatorIds = [...new Set((splitsRes.data || []).map((s: MealSplit) => s.creator_id))];
+    if (creatorIds.length > 0) {
+      const { data: verifiedData } = await supabase
+        .from('users')
+        .select('id')
+        .in('id', creatorIds)
+        .eq('is_verified', true);
+      if (verifiedData) {
+        setVerifiedCreators(new Set(verifiedData.map((u: any) => u.id)));
+      }
+    }
   };
 
   // Filter & Sort Logic
@@ -901,6 +928,7 @@ const MealSplits: React.FC = () => {
               onLeave={handleLeave}
               onComplete={handleComplete}
               onDelete={handleDelete}
+              isCreatorVerified={verifiedCreators.has(split.creator_id)}
             />
           ))}
 

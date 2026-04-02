@@ -5,11 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../services/mockDatabase';
 import { User, Review, MealSplit, UserRole } from '../types';
-import { Settings, Star, Utensils, Award, Edit3, Save, Sun, Moon, Monitor, MessageCircle, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { Settings, Star, Utensils, Award, Edit3, Save, Sun, Moon, Monitor, MessageCircle, Sparkles, TrendingUp, Users, ShieldCheck } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import ImageUpload from '../components/ui/ImageUpload';
+import AadhaarVerification, { VerifiedBadge } from '../components/AadhaarVerification';
 
 const Profile: React.FC = () => {
    const { user, logout, updateUser } = useAuth();
@@ -26,6 +27,7 @@ const Profile: React.FC = () => {
    const [isEditing, setIsEditing] = useState(false);
    const [formData, setFormData] = useState({ name: '', semester: '', pfp_url: '' });
    const [saving, setSaving] = useState(false);
+   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
    useEffect(() => {
       if (isOwnProfile && !user) {
@@ -192,7 +194,10 @@ const Profile: React.FC = () => {
                                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                               />
                            ) : (
-                              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">{displayUser.name}</h2>
+                              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                                 {displayUser.name}
+                                 {displayUser.is_verified && <VerifiedBadge size={22} />}
+                              </h2>
                            )}
 
                            {(isOwnProfile || user?.role === UserRole.ADMIN) && (
@@ -356,7 +361,43 @@ const Profile: React.FC = () => {
                            </div>
                         </div>
                      </Card>
+
+                     {/* Verify Identity Card */}
+                     {!displayUser.is_verified && (
+                        <Card variant="default" className="relative overflow-hidden border-2 border-dashed border-blue-200 dark:border-blue-800">
+                           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
+                           <div className="relative z-10 text-center">
+                              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                                 <ShieldCheck size={22} />
+                              </div>
+                              <h3 className="font-bold text-gray-900 dark:text-white mb-1">Verify Identity</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Get a verified badge to build trust with other foodies.</p>
+                              <Button
+                                 onClick={() => setShowVerifyModal(true)}
+                                 size="sm"
+                                 className="!bg-gradient-to-r !from-blue-600 !to-indigo-600 !text-white"
+                                 leftIcon={<ShieldCheck size={14} />}
+                              >
+                                 Verify with Aadhaar
+                              </Button>
+                           </div>
+                        </Card>
+                     )}
                   </div>
+               )}
+
+               {/* Aadhaar Verification Modal */}
+               {showVerifyModal && (
+                  <AadhaarVerification
+                     onVerified={() => {
+                        setShowVerifyModal(false);
+                        // Refresh displayed user
+                        if (displayUser) {
+                           setDisplayUser({ ...displayUser, is_verified: true, aadhaar_verified_at: new Date().toISOString() });
+                        }
+                     }}
+                     onClose={() => setShowVerifyModal(false)}
+                  />
                )}
 
                {/* Right Column: Activity */}

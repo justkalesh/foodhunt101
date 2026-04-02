@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at timestamp with time zone,
   loyalty_points integer DEFAULT 0,
   active_split_id text,
-  pfp_url text
+  pfp_url text,
+  is_verified boolean DEFAULT false,
+  aadhaar_verified_at timestamp with time zone
 );
 
 -- VENDORS TABLE
