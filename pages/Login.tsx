@@ -24,11 +24,6 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    // if (cid.length !== 8 && cid !== 'ADMIN001') {
-    //   setError('College ID must be 8 characters.');
-    //   return;
-    // }
-
     const res = await login(email, pass);
     if (res.success && res.user) {
       if (res.user.is_disabled) {

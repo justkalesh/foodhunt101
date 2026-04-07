@@ -75,7 +75,7 @@ export const usePushNotifications = () => {
         // Let's REMOVE the auto-call inside useEffect and rely on the UI Banner for the "first time" or "opt-in" experience?
         // OR keep it for now to not break existing flow, but expose the function for the Banner to retry.
 
-        // Compomise: Try to recover token if already granted. If default, wait for user.
+        // Compromise: Try to recover token if already granted. If default, wait for user.
         if (Notification.permission === 'granted') {
             requestPermission();
         }

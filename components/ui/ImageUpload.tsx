@@ -143,7 +143,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 flex-shrink-0">
           {displayUrl ? (
             <>
-              <img src={displayUrl} alt="" className="w-full h-full object-cover" />
+              <img src={displayUrl} alt="Upload preview" className="w-full h-full object-cover" />
               {uploading && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                   <Loader2 size={18} className="animate-spin text-white" />

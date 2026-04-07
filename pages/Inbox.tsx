@@ -557,7 +557,7 @@ const Inbox: React.FC = () => {
                                     )}
                                     <div className="relative w-12 h-12 flex-shrink-0">
                                         {info.avatar ? (
-                                            <img src={info.avatar} alt="" className="w-12 h-12 rounded-full object-cover" />
+                                            <img src={info.avatar} alt={`${info.name}'s avatar`} className="w-12 h-12 rounded-full object-cover" />
                                         ) : (
                                             <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center font-bold text-primary-700 dark:text-primary-300">
                                                 {info.initial}

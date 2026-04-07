@@ -412,7 +412,7 @@ const AdminVendors: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="h-12 w-12 flex-shrink-0">
-                      <img className="h-12 w-12 rounded-xl object-cover border border-gray-100 dark:border-slate-700" src={vendor.logo_url || vendor.menu_image_urls?.[0]} alt="" />
+                      <img className="h-12 w-12 rounded-xl object-cover border border-gray-100 dark:border-slate-700" src={vendor.logo_url || vendor.menu_image_urls?.[0]} alt={`${vendor.name} logo`} />
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">

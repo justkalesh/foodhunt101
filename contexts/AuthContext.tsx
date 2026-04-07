@@ -266,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await api.messages.send(adminRes.data.id, newUser.id, `Welcome to Food Hunt! 🍕\n\nWe're thrilled to have you join our campus food community. Start exploring vendors, join meal splits, and save money while making new friends!\n\nHappy eating!`);
         }
       } catch (e) {
-        console.log("Welcome msg check failed or ignored", e);
+        // Welcome message is non-critical, silently ignore failures
       }
 
       setUser(newUser);

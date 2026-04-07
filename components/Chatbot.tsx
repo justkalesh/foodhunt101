@@ -8,12 +8,6 @@ import { Vendor } from '../types'; // Import Vendor
 
 const Chatbot: React.FC = () => {
     const location = useLocation();
-
-    // Hide chatbot on admin pages
-    const isAdminPage = location.pathname.startsWith('/admin');
-    if (isAdminPage) {
-        return null;
-    }
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
         { role: 'bot', text: 'Hey! Hungry? Ask me about cheap food, healthy options, or where to find pizza!' }
@@ -25,6 +19,9 @@ const Chatbot: React.FC = () => {
 
     // State to track if floating action bar is visible (for mobile positioning)
     const [floatingBarVisible, setFloatingBarVisible] = useState(false);
+
+    // Hide chatbot on admin pages
+    const isAdminPage = location.pathname.startsWith('/admin');
 
     // Listen for floating bar visibility changes from VendorDetail page
     useEffect(() => {
@@ -153,7 +150,7 @@ const Chatbot: React.FC = () => {
         }
     };
 
-    // Helper to renderer text with clickable vendor links
+    // Helper to render text with clickable vendor links
     const renderMessageWithLinks = (text: string, role: string) => {
         if (role === 'user') return text;
 
@@ -184,6 +181,8 @@ const Chatbot: React.FC = () => {
             return part;
         });
     };
+
+    if (isAdminPage) return null;
 
     return (
         <div className={`fixed right-6 z-50 transition-all duration-300 ${floatingBarVisible ? 'bottom-24' : 'bottom-6'}`}>
