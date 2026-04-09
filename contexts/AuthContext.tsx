@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, AuthResponse, UserRole } from '../types';
 import { supabase } from '../services/supabase';
 import { api } from '../services/mockDatabase';
@@ -48,6 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [needsCompletion, setNeedsCompletion] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  // Guard: prevents onAuthStateChange from calling fetchProfile
+  // while signup/login is already handling state in-flight
+  const isAuthInProgress = useRef(false);
 
   useEffect(() => {
     // Check initial session
@@ -82,6 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      // Skip if signup/login is already handling auth state to avoid race conditions
+      // (e.g. profile row not yet inserted when onAuthStateChange fires)
+      if (isAuthInProgress.current) {
+        return;
+      }
+
       if (session?.user) {
         setIsEmailVerified(!!session.user.email_confirmed_at);
         fetchProfile(session.user.id);
@@ -111,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
+    isAuthInProgress.current = true;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
@@ -129,12 +139,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Login error:", error);
       return { success: false, message: error.message || 'Login failed' };
     } finally {
+      isAuthInProgress.current = false;
       setIsLoading(false);
     }
   };
 
   const signup = async (data: any) => {
     setIsLoading(true);
+    isAuthInProgress.current = true;
     try {
       if (data.password !== data.confirm_password) return { success: false, message: 'Passwords do not match.' };
 
@@ -219,6 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Signup error:", error);
       return { success: false, message: error.message };
     } finally {
+      isAuthInProgress.current = false;
       setIsLoading(false);
     }
   };
@@ -238,6 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completeGoogleSignup = async (data: any, supabaseUser: any) => {
     setIsLoading(true);
+    isAuthInProgress.current = true;
     try {
       // Generate unique 6-digit UID
       const uid = await generateUniqueUid();
@@ -277,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Completion error:", error);
       return { success: false, message: error.message };
     } finally {
+      isAuthInProgress.current = false;
       setIsLoading(false);
     }
   };

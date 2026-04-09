@@ -213,6 +213,7 @@ flowchart TD
 - Uses Supabase Auth for email/password and Google OAuth
 - Maintains `needsCompletion` flag for OAuth users needing profile setup
 - Syncs auth state with `users` table profile
+- Uses `isAuthInProgress` ref guard to prevent race conditions between `onAuthStateChange` listener and in-flight signup/login (avoids false `needsCompletion` redirect when the profile row hasn't been inserted yet)
 
 ---
 
