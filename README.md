@@ -5,20 +5,19 @@
 <h1 align="center">Food-Hunt</h1>
 <h3 align="center">Find Food, Find Friends.</h3>
 
-
 ## Tech Stack Overview
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | React 19 + TypeScript | Modern UI with hooks |
-| **Build Tool** | Vite 6 | Fast HMR development |
-| **Routing** | React Router DOM 7 | Hash-based SPA routing |
-| **Backend (BaaS)** | Supabase | PostgreSQL + Auth + Realtime |
-| **AI/ML** | Google Gemini API | Chatbot + Menu OCR scanning |
-| **Push Notifications** | Firebase Cloud Messaging | Real-time notifications |
-| **Analytics** | Vercel Analytics | User tracking |
-| **Icons** | Lucide React | Icon library |
-| **Deployment** | Vercel | Serverless hosting |
+| Layer                  | Technology                    | Purpose                               |
+| ---------------------- | ----------------------------- | ------------------------------------- |
+| **Frontend**           | React 19 + TypeScript         | Modern UI with hooks                  |
+| **Build Tool**         | Vite 6                        | Fast HMR development                  |
+| **Routing**            | React Router DOM 7            | Hash-based SPA routing                |
+| **Backend (BaaS)**     | Supabase                      | PostgreSQL + Auth + Realtime          |
+| **AI/ML**              | Google Gemini API             | Chatbot + Menu OCR scanning           |
+| **Push Notifications** | Firebase Cloud Messaging      | Real-time notifications               |
+| **Image Handling**     | Canvas API + Supabase Storage | Client-side compression & upload      |
+| **Icons**              | Lucide React                  | Icon library                          |
+| **Deployment**         | Cloudflare Pages              | Static hosting + serverless functions |
 
 ---
 
@@ -27,7 +26,11 @@
 ```
 Food-Hunt/
 ├── android/                # Capacitor Android project
-├── api/                    # Serverless API handlers (Vercel)
+├── api/                    # Serverless API handlers (local dev)
+│   ├── chat.js            # AI chatbot endpoint
+│   ├── scan-menu.js       # Menu image OCR
+│   └── send-push.js       # Push notification sender
+├── functions/api/          # Cloudflare Pages Functions (production)
 │   ├── chat.js            # AI chatbot endpoint
 │   ├── scan-menu.js       # Menu image OCR
 │   └── send-push.js       # Push notification sender
@@ -41,6 +44,7 @@ Food-Hunt/
 │   └── ui/                 # Reusable UI component library
 │       ├── Button.tsx
 │       ├── Card.tsx
+│       ├── ImageUpload.tsx # Drag-and-drop image upload with compression
 │       ├── Input.tsx
 │       ├── Select.tsx
 │       ├── ConfirmationModal.tsx
@@ -73,7 +77,9 @@ Food-Hunt/
 │   ├── geminiService.ts   # AI service wrapper
 │   └── seeder.ts          # Database seeder
 ├── utils/
-│   └── sanitize.ts        # Input validation & sanitization
+│   ├── sanitize.ts        # Input validation & sanitization
+│   ├── compressImage.ts   # Client-side image compression (Canvas API)
+│   └── uploadImage.ts     # Supabase Storage upload helper
 ├── tests/
 │   └── split_limit.test.ts # Split feature tests
 ├── App.tsx                # Main router
@@ -210,6 +216,7 @@ flowchart TD
 ```
 
 **Key file:** [AuthContext.tsx](file:///c:/Important/Code/Food-Hunt/contexts/AuthContext.tsx)
+
 - Uses Supabase Auth for email/password and Google OAuth
 - Maintains `needsCompletion` flag for OAuth users needing profile setup
 - Syncs auth state with `users` table profile
@@ -220,6 +227,7 @@ flowchart TD
 ### 2. Vendor Discovery
 
 Users can browse food vendors with filtering and sorting:
+
 - **Origin filters**: North, South, West, Chinese, Indo-Chinese
 - **Rush level indicators**: Low/Mid/High crowd levels
 - **Sorting**: By rating, price, popularity
@@ -231,6 +239,7 @@ Users can browse food vendors with filtering and sorting:
 ### 3. Vendor Details & Reviews
 
 Each vendor page shows:
+
 - Contact info, location, cuisine type
 - **Dynamic menu** with category sections and size variants (S/M/L/XL pricing)
 - **Reviews system** with star ratings (1-5) and text
@@ -252,8 +261,8 @@ flowchart TD
     E[Other user sees split] --> F[Request to Join]
     F --> G[Automated message sent to creator]
     G --> H{Creator decision}
-    H -->|Accept| I[User added to split]
-    H -->|Reject| J[Request rejected]
+    H -->|Accept| I[User added to split + auto-message sent]
+    H -->|Decline| J[Chat deleted from both users]
     I --> K{Split full?}
     K -->|Yes| L[Split closes]
     K -->|No| D
@@ -262,15 +271,22 @@ flowchart TD
 **Key file:** [MealSplits.tsx](file:///c:/Important/Code/Food-Hunt/pages/MealSplits.tsx)
 
 **Business rules:**
+
 - Rate limit: 5 join requests per 3-hour slot
 - Time conflict: Can't create splits within 4 hours of existing ones
 - Closed splits hidden from non-members
+- **Expired splits** auto-deleted when the page loads (past `split_time`)
+- **Accept** sends auto-message: _"Hey! Great news 🎉 I'd be delighted to have you join my split!"_
+- **Decline** deletes the entire conversation from both users' inboxes
+- Accept/Decline buttons hidden for expired splits (shows "Split expired" label)
+- Profile auto-clears `active_split_id` if the linked split is expired
 
 ---
 
 ### 5. Real-Time Chat (Inbox)
 
 Powered by Supabase Realtime subscriptions:
+
 - 1:1 conversations between users
 - Automated messages for split join requests
 - Inline Accept/Reject buttons for pending requests
@@ -293,6 +309,7 @@ flowchart LR
 ```
 
 **Context includes:**
+
 - All vendors with ratings and pricing
 - Menu items per vendor
 - Recent reviews (last 20)
@@ -304,27 +321,27 @@ flowchart LR
 
 ### 7. AI Menu Scanning
 
-Admin can upload menu images for automatic item extraction:
+Admin can upload **multiple** menu images for automatic item extraction:
 
 ```mermaid
 flowchart LR
-    A[Upload menu image] --> B[Convert to Base64]
-    B --> C[POST /api/scan-menu]
+    A[Upload menu images] --> B[Convert each to Base64]
+    B --> C[POST /api/scan-menu per image]
     C --> D[Gemini Vision API]
     D --> E[Extract items as JSON]
-    E --> F[Admin reviews & approves]
-    F --> G[Bulk insert to menu_items]
+    E --> F[Bulk insert to menu_items]
 ```
 
-**Extracts:** Name, category, price, size variants (S/M/L/XL)
+**Extracts:** Name, category (from section headings), price, size variants (S/M/L/XL)
 
-**Key file:** [scan-menu.js](file:///c:/Important/Code/Food-Hunt/api/scan-menu.js)
+**Key files:** [scan-menu.js](file:///c:/Important/Code/Food-Hunt/functions/api/scan-menu.js) + [AdminVendors.tsx](file:///c:/Important/Code/Food-Hunt/pages/AdminVendors.tsx)
 
 ---
 
 ### 8.5. Unique User IDs (UID)
 
 Each user receives a unique 6-digit ID on account creation:
+
 - Generated randomly with collision checking
 - Displayed on user profiles
 - Searchable in Inbox for easy user discovery
@@ -338,11 +355,11 @@ Each user receives a unique 6-digit ID on account creation:
 
 Three admin pages for platform management:
 
-| Page | Features |
-|------|----------|
-| **Dashboard** | User stats, vendor count, review metrics |
-| **Vendors** | Add/edit vendors, manage menus, upload images, AI scan |
-| **Users** | View users, assign roles, sort by activity, disable accounts |
+| Page          | Features                                                                          |
+| ------------- | --------------------------------------------------------------------------------- |
+| **Dashboard** | User stats, vendor count, review metrics, Sync ratings                            |
+| **Vendors**   | Add/edit vendors, manage menus, image upload (drag-and-drop), multi-image AI scan |
+| **Users**     | View users, assign roles, sort by activity, disable accounts                      |
 
 **Sorting options:** Creation date, loyalty points, splits created, reviews, inbox activity
 
@@ -351,6 +368,7 @@ Three admin pages for platform management:
 ### 9. Push Notifications
 
 Firebase Cloud Messaging for:
+
 - New chat messages
 - Split join request responses
 - New member signup alerts (to admin)
@@ -389,6 +407,7 @@ export const api = {
 ```
 
 **Key patterns:**
+
 - All methods return `GenericResponse<T>` with `{success, message, data?}`
 - Supabase client handles RLS security
 - Cascading updates (e.g., recalculating vendor stats after menu changes)
@@ -401,15 +420,16 @@ export const api = {
 
 The [sanitize.ts](file:///c:/Important/Code/Food-Hunt/utils/sanitize.ts) module provides:
 
-| Function | Purpose |
-|----------|----------|
-| `sanitizeReviewText()` | Clean review content |
-| `sanitizeMessageContent()` | Clean chat messages |
-| `sanitizeDishName()` | Clean menu item names |
-| `sanitizeName()` | Clean user/vendor names |
-| `sanitizeString()` | Generic string sanitization |
+| Function                   | Purpose                     |
+| -------------------------- | --------------------------- |
+| `sanitizeReviewText()`     | Clean review content        |
+| `sanitizeMessageContent()` | Clean chat messages         |
+| `sanitizeDishName()`       | Clean menu item names       |
+| `sanitizeName()`           | Clean user/vendor names     |
+| `sanitizeString()`         | Generic string sanitization |
 
 **Limits enforced:**
+
 - Review text: Max 500 characters
 - Messages: Max 1000 characters
 - Names: Max 100 characters
@@ -420,16 +440,16 @@ The [sanitize.ts](file:///c:/Important/Code/Food-Hunt/utils/sanitize.ts) module 
 
 Database security via PostgreSQL RLS policies:
 
-| Table | SELECT | INSERT | UPDATE | DELETE |
-|-------|--------|--------|--------|--------|
-| users | Public | Own ID | Own ID | - |
-| vendors | Public | Admin | Admin | Admin |
-| reviews | Public | Authenticated | Own | Own |
-| menu_items | Public | Admin | Admin | Admin |
-| meal_splits | Authenticated | Authenticated | Authenticated | Creator |
-| conversations | Participant | Authenticated | Participant | - |
-| messages | Sender/Receiver | Sender | - | - |
-| split_join_requests | Requester/Creator | Requester | Creator | Requester |
+| Table               | SELECT            | INSERT        | UPDATE        | DELETE    |
+| ------------------- | ----------------- | ------------- | ------------- | --------- |
+| users               | Public            | Own ID        | Own ID        | -         |
+| vendors             | Public            | Admin         | Admin         | Admin     |
+| reviews             | Public            | Authenticated | Own           | Own       |
+| menu_items          | Public            | Admin         | Admin         | Admin     |
+| meal_splits         | Authenticated     | Authenticated | Authenticated | Creator   |
+| conversations       | Participant       | Authenticated | Participant   | -         |
+| messages            | Sender/Receiver   | Sender        | -             | -         |
+| split_join_requests | Requester/Creator | Requester     | Creator       | Requester |
 
 ---
 
@@ -437,9 +457,9 @@ Database security via PostgreSQL RLS policies:
 
 ```typescript
 enum UserRole {
-  STUDENT = 'student',  // Default role
-  ADMIN = 'admin',      // Full platform access
-  VENDOR = 'vendor'     // Vendor dashboard access
+  STUDENT = "student", // Default role
+  ADMIN = "admin", // Full platform access
+  VENDOR = "vendor", // Vendor dashboard access
 }
 ```
 
@@ -447,16 +467,15 @@ enum UserRole {
 
 ## Key Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `react` | 19.2.0 | UI framework |
-| `vite` | 6.2.0 | Build tool |
-| `@supabase/supabase-js` | 2.86.2 | Backend client |
-| `firebase` | 12.6.0 | Push notifications |
-| `@google/generative-ai` | 0.24.1 | Gemini AI |
-| `react-router-dom` | 7.9.6 | Routing |
-| `lucide-react` | 0.554.0 | Icons |
-| `@vercel/analytics` | 1.6.1 | Analytics |
+| Package                 | Version | Purpose            |
+| ----------------------- | ------- | ------------------ |
+| `react`                 | 19.2.0  | UI framework       |
+| `vite`                  | 6.2.0   | Build tool         |
+| `@supabase/supabase-js` | 2.86.2  | Backend client     |
+| `firebase`              | 12.6.0  | Push notifications |
+| `@google/generative-ai` | 0.24.1  | Gemini AI          |
+| `react-router-dom`      | 7.9.6   | Routing            |
+| `lucide-react`          | 0.554.0 | Icons              |
 
 ---
 
@@ -480,7 +499,29 @@ npx cap run android    # Build and run on device/emulator
 
 ## Deployment
 
-Deployed on **Vercel** with:
+Deployed on **Cloudflare Pages** with:
+
 - Frontend: Static files from `dist/`
-- API routes: Serverless functions in `api/`
-- Environment variables for Supabase & Gemini keys
+- API routes: Cloudflare Pages Functions in `functions/api/`
+- Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`, `GEMINI_API_KEY`
+- SPA routing via `public/_redirects`
+
+```bash
+# Deploy via Git (auto-deploy on push)
+git add . && git commit -m "deploy" && git push
+
+# Manual deploy via Wrangler
+npm run build && npx wrangler pages deploy dist --project-name=food-hunt
+```
+
+---
+
+## Image Handling
+
+Images (vendor logos, menu photos, profile pictures) use a client-side compression pipeline:
+
+1. **Compress**: `utils/compressImage.ts` resizes and converts to JPEG via Canvas API
+2. **Upload**: `utils/uploadImage.ts` uploads to Supabase Storage with unique filenames
+3. **UI**: `components/ui/ImageUpload.tsx` provides drag-and-drop with preview and progress
+
+Old images are automatically cleaned up from storage when replaced.
