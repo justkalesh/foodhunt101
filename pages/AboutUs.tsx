@@ -34,10 +34,10 @@ const AboutUs: React.FC = () => {
         },
         {
             name: 'Instagram',
-            url: 'https://www.instagram.com/kalash.hu/',
+            url: 'https://www.instagram.com/kalash.who/',
             icon: Instagram,
             color: 'bg-gradient-to-br from-[#833AB4] via-[#E4405F] to-[#FCAF45] hover:opacity-90',
-            handle: '@kalash.hu'
+            handle: '@kalash.who'
         },
         {
             name: 'Email',
