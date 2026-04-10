@@ -4,15 +4,26 @@ import { messaging } from '../services/firebase';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+// iPhone Safari doesn't have the Notification API at all
+const isNotificationSupported = typeof window !== 'undefined' && 'Notification' in window;
+
 export const usePushNotifications = () => {
     const { user } = useAuth();
     const [token, setToken] = useState<string | null>(null);
     const [notification, setNotification] = useState<any>(null);
 
-    const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>(Notification.permission);
+    const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>(
+        isNotificationSupported ? Notification.permission : 'denied'
+    );
 
     const requestPermission = async () => {
         try {
+            // Check if notifications are supported at all (iPhone Safari = NO)
+            if (!isNotificationSupported) {
+                console.log('Notification API not supported (likely iOS Safari)');
+                return;
+            }
+
             // Check if push notifications are supported
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                 console.log('Push notifications not supported in this browser');
@@ -60,22 +71,10 @@ export const usePushNotifications = () => {
     useEffect(() => {
         if (!user) return;
 
-        // Auto request on load? maybe not, le'ts respect user choice if they denied or default.
-        // Actually, existing logic auto-called it. Let's keep auto-call pattern but also providing manual trigger.
-        // But for "banner" logic, we might want to NOT auto-call effectively if we want them to click the banner? 
-        // The previous code called `requestPermission()` immediately.
-        // If we want a Banner saying "Turn on", we should probably check status first. 
-        // If 'default', we can show banner. If 'denied', we show banner with "Go to settings".
-        // If 'granted', no banner.
+        // Skip everything if Notification API is not available (iOS Safari)
+        if (!isNotificationSupported) return;
 
-        // Let's keep the auto-init attempt for now, but if it remains 'default' (browser blocked auto-prompt?), 
-        // or if we want to rely on user interaction.
-        // Actually, browsers block `Notification.requestPermission()` if not triggered by user gesture often.
-        // So the previous `useEffect` call might fail in strict environments. 
-        // Let's REMOVE the auto-call inside useEffect and rely on the UI Banner for the "first time" or "opt-in" experience?
-        // OR keep it for now to not break existing flow, but expose the function for the Banner to retry.
-
-        // Compromise: Try to recover token if already granted. If default, wait for user.
+        // Try to recover token if already granted. If default, wait for user.
         if (Notification.permission === 'granted') {
             requestPermission();
         }
@@ -84,10 +83,12 @@ export const usePushNotifications = () => {
         const unsubscribe = onMessage(messaging, (payload) => {
             console.log('Message received. ', payload);
             setNotification(payload);
-            new Notification(payload.notification?.title || 'New Message', {
-                body: payload.notification?.body,
-                icon: '/logo.png'
-            });
+            if (isNotificationSupported) {
+                new Notification(payload.notification?.title || 'New Message', {
+                    body: payload.notification?.body,
+                    icon: '/logo.png'
+                });
+            }
         });
 
         return () => unsubscribe();
