@@ -263,20 +263,31 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
                   {(() => {
                     const matches = menuItems.filter(i => i.name.toLowerCase().includes(dish.toLowerCase()));
                     if (matches.length === 0) return null;
-                    return matches.map((item, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          setDish(item.name);
-                          setPrice(item.price.toString());
-                          setShowDishDropdown(false);
-                        }}
-                        className="px-4 py-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer text-gray-900 dark:text-white flex justify-between items-center transition-colors"
-                      >
-                        <span className="font-medium">{item.name}</span>
-                        <span className="font-bold text-primary-600 text-sm">₹{item.price}</span>
-                      </div>
-                    ));
+                    return matches.map((item, idx) => {
+                      // Get all available size prices
+                      const sizePrices = [item.small_price, item.medium_price, item.large_price, item.xl_price].filter((p): p is number => p != null && p > 0);
+                      // Use flat price if available, otherwise lowest size price
+                      const effectivePrice = item.price > 0 ? item.price : (sizePrices.length > 0 ? Math.min(...sizePrices) : 0);
+                      const hasSizes = sizePrices.length > 0 && item.price === 0;
+                      const priceLabel = hasSizes
+                        ? `₹${Math.min(...sizePrices)} – ₹${Math.max(...sizePrices)}`
+                        : `₹${item.price}`;
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setDish(item.name);
+                            setPrice(effectivePrice.toString());
+                            setShowDishDropdown(false);
+                          }}
+                          className="px-4 py-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer text-gray-900 dark:text-white flex justify-between items-center transition-colors"
+                        >
+                          <span className="font-medium">{item.name}</span>
+                          <span className="font-bold text-primary-600 text-sm">{priceLabel}</span>
+                        </div>
+                      );
+                    });
                   })()}
                 </div>
               )}
