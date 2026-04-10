@@ -398,11 +398,13 @@ const Inbox: React.FC = () => {
                     </Link>
                 );
             } else if (match[4]) {
-                // Split mention
+                // Split mention — link with search param for the split code
+                const splitId = match[6] || '';
+                const splitCode = splitId.slice(-6).toUpperCase();
                 parts.push(
                     <Link
                         key={`s-${match.index}`}
-                        to="/splits"
+                        to={`/splits?search=${splitCode}`}
                         className={`font-bold hover:underline ${isMe ? 'text-yellow-200' : 'text-secondary-600'}`}
                     >
                         🍽️ #{match[5]}

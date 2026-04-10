@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
 import { MealSplit, Vendor } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, Clock, PlusCircle, X, Search, MapPin, CheckSquare, Share2,
   Filter, Calendar, Store, Utensils, Sparkles, Ticket, Pencil
@@ -710,6 +710,7 @@ const MealSplits: React.FC = () => {
   const { user, updateUser, isEmailVerified } = useAuth();
   const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();
+  const location = useLocation();
   const [splits, setSplits] = useState<MealSplit[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [myRequests, setMyRequests] = useState<string[]>([]);
@@ -737,6 +738,15 @@ const MealSplits: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Read ?search= query param from URL (e.g. from chat split mention click)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchParam = params.get('search');
+    if (searchParam) {
+      setFilterVendor(searchParam);
+    }
+  }, [location.search]);
 
   const fetchData = async () => {
     const [splitsRes, vendorsRes] = await Promise.all([
@@ -795,8 +805,12 @@ const MealSplits: React.FC = () => {
       const joined = user && participantIds.includes(user.id);
       if (isFull && !joined && split.creator_id !== user?.id) return false;
 
-      if (filterVendor && !split.vendor_name.toLowerCase().includes(filterVendor.toLowerCase())) {
-        return false;
+      if (filterVendor) {
+        const q = filterVendor.toLowerCase().replace(/^#/, '');
+        const matchesVendor = split.vendor_name.toLowerCase().includes(q);
+        const matchesDish = split.dish_name.toLowerCase().includes(q);
+        const matchesCode = split.id.slice(-6).toLowerCase().includes(q);
+        if (!matchesVendor && !matchesDish && !matchesCode) return false;
       }
 
       if (filterDate) {
@@ -976,6 +990,10 @@ const MealSplits: React.FC = () => {
     setFilterVendor('');
     setFilterDate('');
     setSortBy('time');
+    // Clear URL search param if present
+    if (location.search) {
+      navigate('/splits', { replace: true });
+    }
   };
 
   return (
@@ -1032,7 +1050,7 @@ const MealSplits: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Search by vendor name..."
+                  placeholder="Search by vendor, dish, or #split code..."
                   className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-500 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
                   value={filterVendor}
                   onChange={e => setFilterVendor(e.target.value)}
