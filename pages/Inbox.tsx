@@ -225,9 +225,14 @@ const Inbox: React.FC = () => {
                 (payload) => {
                     const newMsg = payload.new as Message;
 
-                    // FIX: Stale Closure - Use functional update
                     setActiveMessages((prevMessages) => {
-                        // Prevent duplicates
+                        // If this is my own message arriving via Realtime, replace any temp (optimistic) messages
+                        if (newMsg.sender_id === user.id) {
+                            const withoutTemp = prevMessages.filter(m => !m.id.startsWith('temp-'));
+                            if (withoutTemp.some(m => m.id === newMsg.id)) return withoutTemp;
+                            return [...withoutTemp, newMsg];
+                        }
+                        // For other people's messages, just dedup and append
                         if (prevMessages.some(m => m.id === newMsg.id)) return prevMessages;
                         return [...prevMessages, newMsg];
                     });
@@ -288,13 +293,26 @@ const Inbox: React.FC = () => {
         setInputText(''); // Clear immediately to prevent duplicates
 
         const otherId = getOtherUserId(activeChatId);
+
+        // Optimistic update: show message instantly in the UI
+        const optimisticMsg: Message = {
+            id: `temp-${Date.now()}`,
+            sender_id: user.id,
+            receiver_id: otherId,
+            content: textToSend,
+            is_read: false,
+            created_at: new Date().toISOString(),
+        };
+        setActiveMessages(prev => [...prev, optimisticMsg]);
+
         const res = await api.messages.send(user.id, otherId, textToSend);
 
         if (res.success) {
-            // Optional: Optimistically append message if latency is an issue, 
-            // but Realtime subscription should handle it quickly.
+            // Replace optimistic message with real one (realtime sub dedup handles this)
             fetchInbox(); // Update timestamp in sidebar
         } else {
+            // Remove optimistic message on failure
+            setActiveMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
             setToast({ message: 'Failed to send message. Please try again.', type: 'error' });
             setTimeout(() => setToast(null), 3000);
             setInputText(textToSend); // Restore if failed
