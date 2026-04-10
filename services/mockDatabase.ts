@@ -1223,7 +1223,11 @@ export const api = {
         const { data, error } = await supabase.from('messages').insert(newMessage).select().single();
         if (error) throw error;
 
-        // Update conversation last_message
+        // Update conversation last_message and increment unread count for receiver
+        const { data: convData } = await supabase.from('conversations').select('unread_counts').eq('id', conversationId).single();
+        const currentUnread = convData?.unread_counts || {};
+        const updatedUnread = { ...currentUnread, [receiverId]: (currentUnread[receiverId] || 0) + 1 };
+
         await supabase.from('conversations').update({
           last_message: {
             content: sanitizedContent,
@@ -1231,6 +1235,7 @@ export const api = {
             created_at: new Date().toISOString(),
             is_read: false
           },
+          unread_counts: updatedUnread,
           updated_at: new Date().toISOString()
         }).eq('id', conversationId);
 
@@ -1249,12 +1254,22 @@ export const api = {
           .eq('conversation_id', conversationId)
           .eq('receiver_id', userId);
 
-        // Update conversation last_message is_read if applicable
-        const { data: conv } = await supabase.from('conversations').select('last_message').eq('id', conversationId).single();
+        // Update conversation: reset unread count and mark last_message as read
+        const { data: conv } = await supabase.from('conversations').select('last_message, unread_counts').eq('id', conversationId).single();
+        const updates: any = {};
+
+        // Reset unread count for this user
+        if (conv?.unread_counts) {
+          updates.unread_counts = { ...conv.unread_counts, [userId]: 0 };
+        }
+
+        // Mark last_message as read if the sender is someone else
         if (conv?.last_message && conv.last_message.sender_id !== userId) {
-          await supabase.from('conversations').update({
-            last_message: { ...conv.last_message, is_read: true }
-          }).eq('id', conversationId);
+          updates.last_message = { ...conv.last_message, is_read: true };
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('conversations').update(updates).eq('id', conversationId);
         }
 
         return { success: true, message: 'Marked as read.' };
