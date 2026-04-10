@@ -607,7 +607,8 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
                 onClick={async () => {
                   const perPerson = Math.round(split.total_price / split.people_needed);
                   const shareText = `🍽️ ${split.dish_name} at ${split.vendor_name} — ₹${perPerson}/person\nJoin my meal split on Food-Hunt!`;
-                  const shareUrl = `${window.location.origin}/#/splits`;
+                  const splitCode = split.id.slice(-6).toUpperCase();
+                  const shareUrl = `${window.location.origin}/#/splits?search=${splitCode}`;
                   const fullText = `${shareText}\n${shareUrl}`;
 
                   // Always copy to clipboard
