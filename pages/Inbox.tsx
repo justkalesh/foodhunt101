@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
-import { Message, Conversation, Vendor } from '../types';
+import { Message, Conversation, Vendor, MealSplit } from '../types';
 import { Send, Search, MoreVertical, ArrowLeft, Trash2, X, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -77,6 +77,11 @@ const Inbox: React.FC = () => {
     const [mentionCursorPos, setMentionCursorPos] = useState<number | null>(null);
     const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+    // Split Mentions
+    const [activeSplits, setActiveSplits] = useState<MealSplit[]>([]);
+    const [splitMentionQuery, setSplitMentionQuery] = useState<string | null>(null);
+    const [splitMentionCursorPos, setSplitMentionCursorPos] = useState<number | null>(null);
+
     // Toast Notification
     const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
 
@@ -86,6 +91,7 @@ const Inbox: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const sidebarMenuRef = useRef<HTMLDivElement>(null);
     const lastMessageRef = useRef<string | null>(null);
+    const splitsLoadedRef = useRef(false);
 
     // ------------------------------------------------------------------
     // 1. Initial Load & Setup
@@ -352,9 +358,9 @@ const Inbox: React.FC = () => {
     };
 
     const renderMessageContent = (content: string, isMe: boolean) => {
-        // Basic parser for mentions @[Name](id:ID)
-        const parts = [];
-        const regex = /@\[(.*?)\]\(id:(.*?)\)/g;
+        // Parser for @[Name](id:ID) vendor mentions and #[Name](split:ID) split mentions
+        const parts: (string | React.ReactNode)[] = [];
+        const regex = /(@\[(.*?)\]\(id:(.*?)\))|(#\[(.*?)\]\(split:(.*?)\))/g;
         let lastIndex = 0;
         let match;
 
@@ -362,15 +368,29 @@ const Inbox: React.FC = () => {
             if (match.index > lastIndex) {
                 parts.push(content.substring(lastIndex, match.index));
             }
-            parts.push(
-                <Link
-                    key={match.index}
-                    to={`/vendors/${match[2]}`}
-                    className={`font-bold hover:underline ${isMe ? 'text-white' : 'text-primary-600'}`}
-                >
-                    @{match[1]}
-                </Link>
-            );
+            if (match[1]) {
+                // Vendor mention
+                parts.push(
+                    <Link
+                        key={`v-${match.index}`}
+                        to={`/vendors/${match[3]}`}
+                        className={`font-bold hover:underline ${isMe ? 'text-white' : 'text-primary-600'}`}
+                    >
+                        @{match[2]}
+                    </Link>
+                );
+            } else if (match[4]) {
+                // Split mention
+                parts.push(
+                    <Link
+                        key={`s-${match.index}`}
+                        to="/splits"
+                        className={`font-bold hover:underline ${isMe ? 'text-yellow-200' : 'text-secondary-600'}`}
+                    >
+                        🍽️ #{match[5]}
+                    </Link>
+                );
+            }
             lastIndex = regex.lastIndex;
         }
         if (lastIndex < content.length) {
@@ -386,8 +406,9 @@ const Inbox: React.FC = () => {
 
         const selectionStart = e.target.selectionStart || 0;
         const textBefore = val.slice(0, selectionStart);
-        const atIndex = textBefore.lastIndexOf('@');
 
+        // Detect @ vendor mentions
+        const atIndex = textBefore.lastIndexOf('@');
         if (atIndex !== -1 && (atIndex === 0 || textBefore[atIndex - 1] === ' ')) {
             const query = textBefore.slice(atIndex + 1);
             setMentionQuery(query);
@@ -395,6 +416,21 @@ const Inbox: React.FC = () => {
         } else {
             setMentionQuery(null);
             setMentionCursorPos(null);
+        }
+
+        // Detect # split mentions (lazy-load splits on first use)
+        const hashIndex = textBefore.lastIndexOf('#');
+        if (hashIndex !== -1 && (hashIndex === 0 || textBefore[hashIndex - 1] === ' ')) {
+            const query = textBefore.slice(hashIndex + 1);
+            setSplitMentionQuery(query);
+            setSplitMentionCursorPos(hashIndex);
+            if (!splitsLoadedRef.current) {
+                splitsLoadedRef.current = true;
+                loadActiveSplits();
+            }
+        } else {
+            setSplitMentionQuery(null);
+            setSplitMentionCursorPos(null);
         }
     };
 
@@ -409,8 +445,36 @@ const Inbox: React.FC = () => {
         inputRef.current.focus();
     };
 
+    const insertSplitMention = (split: MealSplit) => {
+        if (splitMentionCursorPos === null || !inputRef.current) return;
+        const before = inputText.slice(0, splitMentionCursorPos);
+        const after = inputText.slice(inputRef.current.selectionStart || inputText.length);
+        const label = `${split.dish_name} @ ${split.vendor_name}`;
+        const newText = `${before}#[${label}](split:${split.id}) ${after}`;
+        setInputText(newText);
+        setSplitMentionQuery(null);
+        setSplitMentionCursorPos(null);
+        inputRef.current.focus();
+    };
+
+    const loadActiveSplits = async () => {
+        const res = await api.splits.getAll();
+        if (res.success && res.data) {
+            setActiveSplits(res.data.filter(s => !s.is_closed));
+        }
+    };
+
     const filteredVendors = mentionQuery
         ? vendors.filter(v => v.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 5)
+        : [];
+
+    const filteredSplits = splitMentionQuery !== null
+        ? activeSplits.filter(s => {
+            const q = splitMentionQuery.toLowerCase();
+            return s.dish_name.toLowerCase().includes(q) ||
+                   s.vendor_name?.toLowerCase().includes(q) ||
+                   s.id.slice(-6).toLowerCase().includes(q);
+        }).slice(0, 5)
         : [];
 
     // --- Selection & Deletion ---
@@ -694,11 +758,24 @@ const Inbox: React.FC = () => {
 
                         {/* Floating Input Bar */}
                         <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center gap-3 z-10 border-t border-gray-100 dark:border-slate-800 relative">
-                            {/* Mention Popup */}
+                            {/* Vendor Mention Popup */}
                             {mentionQuery && filteredVendors.length > 0 && (
-                                <div className="absolute bottom-full left-4 mb-2 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden z-50">
+                                <div className="absolute bottom-full left-4 mb-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden z-50">
+                                    <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-700/50">Vendors</div>
                                     {filteredVendors.map(v => (
-                                        <button key={v.id} onClick={() => insertMention(v)} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-900 dark:text-white transition-colors">{v.name}</button>
+                                        <button key={v.id} onClick={() => insertMention(v)} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-gray-900 dark:text-white transition-colors">@{v.name}</button>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Split Mention Popup */}
+                            {splitMentionQuery !== null && filteredSplits.length > 0 && (
+                                <div className="absolute bottom-full left-4 mb-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden z-50">
+                                    <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-700/50">Meal Splits</div>
+                                    {filteredSplits.map(s => (
+                                        <button key={s.id} onClick={() => insertSplitMention(s)} className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm text-gray-900 dark:text-white transition-colors">
+                                            <span className="font-medium">🍽️ {s.dish_name}</span>
+                                            <span className="text-xs text-gray-400 ml-2">@ {s.vendor_name} · #{s.id.slice(-6).toUpperCase()}</span>
+                                        </button>
                                     ))}
                                 </div>
                             )}

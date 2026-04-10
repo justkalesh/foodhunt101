@@ -486,8 +486,34 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-            {/* Creator/Admin Controls */}
+            {/* Creator/Admin Controls + Share */}
             <div className="flex gap-2">
+              {/* Share Button - always visible */}
+              <button
+                onClick={async () => {
+                  const perPerson = Math.round(split.total_price / split.people_needed);
+                  const shareText = `🍽️ ${split.dish_name} at ${split.vendor_name} — ₹${perPerson}/person\nJoin my meal split on Food-Hunt!`;
+                  const shareUrl = `${window.location.origin}/#/splits`;
+                  const fullText = `${shareText}\n${shareUrl}`;
+
+                  // Always copy to clipboard
+                  await navigator.clipboard.writeText(fullText);
+
+                  // Also open native share sheet if available
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: `Food-Hunt: ${split.dish_name}`, text: shareText, url: shareUrl });
+                    } catch (e) { /* user cancelled */ }
+                  } else {
+                    alert('Copied to clipboard!');
+                  }
+                }}
+                className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                title="Share Split"
+              >
+                <Share2 size={18} />
+              </button>
+
               {user && (split.creator_id === user.id || user.role === 'admin') && (
                 <>
                   {!isClosed && split.creator_id === user.id && (
