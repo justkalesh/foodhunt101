@@ -6,6 +6,7 @@ import App from './App';
 declare global {
   interface Window {
     __hideFallback?: () => void;
+    __clearLoadTimer?: () => void;
     __isInAppBrowser?: boolean;
   }
 }
@@ -25,4 +26,8 @@ root.render(
 // Hide fallback UI since app loaded successfully
 if (typeof window.__hideFallback === 'function') {
   window.__hideFallback();
+}
+// Clear diagnostic load timer
+if (typeof window.__clearLoadTimer === 'function') {
+  window.__clearLoadTimer();
 }
