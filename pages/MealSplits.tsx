@@ -5,7 +5,7 @@ import { MealSplit, Vendor } from '../types';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Clock, PlusCircle, X, Search, MapPin, CheckSquare, Share2,
-  Filter, Calendar, Store, Utensils, Sparkles, Ticket
+  Filter, Calendar, Store, Utensils, Sparkles, Ticket, Pencil
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -362,6 +362,107 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
 };
 
 // ============================================
+// EDIT SPLIT MODAL
+// ============================================
+interface EditSplitModalProps {
+  isOpen: boolean;
+  split: MealSplit;
+  onClose: () => void;
+  onSubmit: (splitId: string, updates: { people_needed: number; split_time: string; time_note: string }) => void;
+}
+
+const EditSplitModal: React.FC<EditSplitModalProps> = ({ isOpen, split, onClose, onSubmit }) => {
+  const existingDate = split.split_time ? new Date(split.split_time) : new Date();
+  const [people, setPeople] = useState(String(split.people_needed));
+  const [date, setDate] = useState(existingDate.toLocaleDateString('en-CA'));
+  const [time, setTime] = useState(existingDate.toTimeString().slice(0, 5));
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dateTime = new Date(`${date}T${time}`);
+    if (dateTime <= new Date()) {
+      alert('Please select a future date and time.');
+      return;
+    }
+    const timeNote = dateTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    onSubmit(split.id, { people_needed: parseInt(people), split_time: dateTime.toISOString(), time_note: timeNote });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative glass dark:glass-dark rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+                <Pencil size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Split</h2>
+                <p className="text-xs text-gray-500">{split.dish_name} @ {split.vendor_name}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+              <X size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Total People */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Total People</label>
+              <select
+                value={people}
+                onChange={(e) => setPeople(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
+                required
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date & Time Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  min={new Date().toLocaleDateString('en-CA')}
+                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Time</label>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <Button type="submit" size="lg" className="w-full mt-2" leftIcon={<Pencil size={20} />}>
+              Save Changes
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // MEAL SPLIT CARD (TICKET STYLE)
 // ============================================
 interface MealSplitCardProps {
@@ -374,6 +475,7 @@ interface MealSplitCardProps {
   onLeave: (split: MealSplit) => void;
   onComplete: (split: MealSplit) => void;
   onDelete: (split: MealSplit) => void;
+  onEdit: (split: MealSplit) => void;
   isCreatorVerified?: boolean;
 }
 
@@ -387,6 +489,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
   onLeave,
   onComplete,
   onDelete,
+  onEdit,
   isCreatorVerified = false,
 }) => {
   // Use participants array instead of people_joined_ids
@@ -517,13 +620,22 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
               {user && (split.creator_id === user.id || user.role === 'admin') && (
                 <>
                   {!isClosed && split.creator_id === user.id && (
-                    <button
-                      onClick={() => onComplete(split)}
-                      className="p-2 text-accent-success hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                      title="Mark as Complete"
-                    >
-                      <CheckSquare size={18} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => onEdit(split)}
+                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title="Edit Split"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={() => onComplete(split)}
+                        className="p-2 text-accent-success hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                        title="Mark as Complete"
+                      >
+                        <CheckSquare size={18} />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => onDelete(split)}
@@ -601,6 +713,7 @@ const MealSplits: React.FC = () => {
   const [sortBy, setSortBy] = useState<'time' | 'price' | 'slots'>('time');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [verifiedCreators, setVerifiedCreators] = useState<Set<string>>(new Set());
+  const [editingSplit, setEditingSplit] = useState<MealSplit | null>(null);
 
   // Confirmation modal states
   const [pendingAction, setPendingAction] = useState<{
@@ -741,6 +854,24 @@ const MealSplits: React.FC = () => {
   // Show delete confirmation modal
   const handleDelete = (split: MealSplit) => {
     setPendingAction({ type: 'delete', split, message: 'Are you sure you want to delete this split?' });
+  };
+
+  // Edit split
+  const handleEdit = (split: MealSplit) => {
+    setEditingSplit(split);
+  };
+
+  const handleEditSubmit = async (splitId: string, updates: { people_needed: number; split_time: string; time_note: string }) => {
+    if (!user) return;
+    // @ts-ignore
+    const res = await api.splits.update(splitId, user.id, updates);
+    if (res.success) {
+      setMsg('Split updated!');
+      fetchData();
+      setTimeout(() => setMsg(''), 3000);
+    } else {
+      alert(res.message);
+    }
   };
 
   // Execute the pending action
@@ -954,6 +1085,7 @@ const MealSplits: React.FC = () => {
               onLeave={handleLeave}
               onComplete={handleComplete}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               isCreatorVerified={verifiedCreators.has(split.creator_id)}
             />
           ))}
@@ -1092,6 +1224,16 @@ const MealSplits: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleCreate}
           vendors={vendors}
+        />
+      )}
+
+      {/* Edit Split Modal */}
+      {editingSplit && (
+        <EditSplitModal
+          isOpen={!!editingSplit}
+          split={editingSplit}
+          onClose={() => setEditingSplit(null)}
+          onSubmit={handleEditSubmit}
         />
       )}
 
