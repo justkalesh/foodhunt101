@@ -72,6 +72,7 @@ const Navbar: React.FC = () => {
             )}
 
             <button
+              aria-label="Toggle theme"
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
               title={`Current theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
@@ -91,7 +92,7 @@ const Navbar: React.FC = () => {
                 <Link to="/profile" className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
                   <UserIcon size={20} />
                 </Link>
-                <button onClick={logout} className="text-red-500 hover:text-red-700">
+                <button aria-label="Log out" onClick={logout} className="text-red-500 hover:text-red-700">
                   <LogOut size={20} />
                 </button>
               </div>
@@ -105,10 +106,11 @@ const Navbar: React.FC = () => {
 
           {/* Mobile menu button */}
           <div className="flex items-center md:hidden gap-2">
-            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
+            <button aria-label="Toggle theme" onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
               {getThemeIcon()}
             </button>
             <button
+              aria-label="Toggle mobile menu"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >

@@ -188,6 +188,7 @@ const Chatbot: React.FC = () => {
         <div className={`fixed right-6 z-50 transition-all duration-300 ${floatingBarVisible ? 'bottom-24' : 'bottom-6'}`}>
             {!isOpen && (
                 <button
+                    aria-label="Open chat"
                     onClick={() => setIsOpen(true)}
                     className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-105"
                 >
@@ -199,7 +200,7 @@ const Chatbot: React.FC = () => {
                 <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px] animate-fade-in-up">
                     <div className="bg-primary-600 p-4 flex justify-between items-center text-white">
                         <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18} /> FoodieBot</h3>
-                        <button onClick={() => setIsOpen(false)}><X size={20} /></button>
+                        <button aria-label="Close chat" onClick={() => setIsOpen(false)}><X size={20} /></button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth custom-scrollbar" ref={scrollRef}>
@@ -230,6 +231,7 @@ const Chatbot: React.FC = () => {
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         />
                         <button
+                            aria-label="Send message"
                             onClick={handleSend}
                             className={`p-2 rounded-full transition-colors ${input.trim() ? 'text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-800' : 'text-gray-400 cursor-not-allowed'}`}
                             disabled={!input.trim()}
