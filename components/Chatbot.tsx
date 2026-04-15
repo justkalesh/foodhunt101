@@ -189,6 +189,7 @@ const Chatbot: React.FC = () => {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
+                    aria-label="Open chat"
                     className="bg-primary-600 hover:bg-primary-700 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-105"
                 >
                     <MessageCircle size={28} />
@@ -199,7 +200,7 @@ const Chatbot: React.FC = () => {
                 <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px] animate-fade-in-up">
                     <div className="bg-primary-600 p-4 flex justify-between items-center text-white">
                         <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18} /> FoodieBot</h3>
-                        <button onClick={() => setIsOpen(false)}><X size={20} /></button>
+                        <button onClick={() => setIsOpen(false)} aria-label="Close chat"><X size={20} /></button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth custom-scrollbar" ref={scrollRef}>
@@ -231,6 +232,7 @@ const Chatbot: React.FC = () => {
                         />
                         <button
                             onClick={handleSend}
+                            aria-label="Send message"
                             className={`p-2 rounded-full transition-colors ${input.trim() ? 'text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-800' : 'text-gray-400 cursor-not-allowed'}`}
                             disabled={!input.trim()}
                         >
