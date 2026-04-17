@@ -54,7 +54,10 @@ CREATE TABLE IF NOT EXISTS public.vendors (
   is_featured boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone,
-  maps_url text                       -- Google Maps share link
+  maps_url text,                      -- Google Maps share link
+  is_accepting_orders boolean DEFAULT true,
+  traffic_level text CHECK (traffic_level IN ('low', 'moderate', 'high', 'very_busy')),
+  traffic_level_expires_at timestamp with time zone
 );
 
 -- REVIEWS TABLE

@@ -25,6 +25,7 @@ export interface User {
 
 export type OriginTag = 'North' | 'South' | 'West' | 'Chinese' | 'Indo-Chinese' | 'Other';
 export type RushLevel = 'low' | 'mid' | 'high';
+export type TrafficLevel = 'low' | 'moderate' | 'high' | 'very_busy';
 
 export interface Vendor {
   id: string;
@@ -50,6 +51,10 @@ export interface Vendor {
   updated_at?: string;
   // Google Maps
   maps_url?: string;
+  // Live status
+  is_accepting_orders?: boolean;
+  traffic_level?: TrafficLevel;
+  traffic_level_expires_at?: string;
   // Computed fields for UI
   rating_avg?: number;
   rating_count?: number;
