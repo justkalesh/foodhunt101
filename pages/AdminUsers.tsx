@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
 import { User, UserRole } from '../types';
-import { Lock, Unlock, Plus, MessageSquare, X, Bell } from 'lucide-react';
+import { Lock, Unlock, Plus, MessageSquare, X, Bell, ShieldCheck } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import ImageUpload from '../components/ui/ImageUpload';
 
@@ -69,6 +69,22 @@ const AdminUsers: React.FC = () => {
       return;
     }
     await api.admin.users.toggleStatus(targetUserId);
+    fetchUsers();
+  };
+
+  const SUPER_ADMIN_EMAIL = 'foodhunt101lpu@gmail.com';
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+
+  const handleChangeRole = async (targetUser: User) => {
+    if (!isSuperAdmin) return;
+    if (targetUser.email === SUPER_ADMIN_EMAIL) {
+      alert("You cannot change the super admin's role.");
+      return;
+    }
+    const newRole = targetUser.role === UserRole.ADMIN ? UserRole.STUDENT : UserRole.ADMIN;
+    const confirmMsg = `Change ${targetUser.name}'s role from ${targetUser.role.toUpperCase()} to ${newRole.toUpperCase()}?`;
+    if (!confirm(confirmMsg)) return;
+    await api.admin.users.update(targetUser.id, { role: newRole });
     fetchUsers();
   };
 
@@ -236,12 +252,27 @@ const AdminUsers: React.FC = () => {
                   </Link>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${u.role === UserRole.ADMIN
-                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'
-                    }`}>
-                    {u.role.toUpperCase()}
-                  </span>
+                  {isSuperAdmin && u.email !== SUPER_ADMIN_EMAIL ? (
+                    <button
+                      onClick={() => handleChangeRole(u)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                        u.role === UserRole.ADMIN
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50'
+                          : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                      }`}
+                      title="Click to toggle role"
+                    >
+                      <ShieldCheck size={12} />
+                      {u.role.toUpperCase()}
+                    </button>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${u.role === UserRole.ADMIN
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'
+                      }`}>
+                      {u.role.toUpperCase()}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {u.semester}
