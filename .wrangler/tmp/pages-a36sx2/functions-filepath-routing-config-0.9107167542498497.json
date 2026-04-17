@@ -1,0 +1,53 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/chat",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/chat.js:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/chat",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/chat.js:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/scan-menu",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/scan-menu.js:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/scan-menu",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/scan-menu.js:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/send-push",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/send-push.js:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/send-push",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/send-push.js:onRequestPost"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}
