@@ -219,6 +219,7 @@ const VendorList: React.FC = () => {
                 Clear All
               </button>
             )}
+          </div>
         </div>
 
         {/* Vendor Grid */}
