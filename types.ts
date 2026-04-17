@@ -166,3 +166,23 @@ export interface Message {
   request_status?: 'pending' | 'accepted' | 'rejected'; // Computed field for UI
   split_time?: string; // Computed: the split's scheduled time (for expiry check)
 }
+
+// ============================================
+// LOCATION TYPES
+// ============================================
+
+export interface CampusLocation {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface UserAddress {
+  id: string;
+  user_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  created_at?: string;
+}

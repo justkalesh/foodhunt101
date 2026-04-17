@@ -4,6 +4,7 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { LocationProvider } from './contexts/LocationContext';
 import Navbar from './components/Navbar';
 import MegaFooter from './components/MegaFooter';
 import Chatbot from './components/Chatbot';
@@ -120,8 +121,9 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <AppContent />
-
+          <LocationProvider>
+            <AppContent />
+          </LocationProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>
