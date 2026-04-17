@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
 import { MealSplit, Vendor } from '../types';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, Clock, PlusCircle, X, Search, MapPin, CheckSquare, Share2,
-  Filter, Calendar, Store, Utensils, Sparkles, Ticket, Pencil
+  Filter, Calendar, Store, Utensils, Sparkles, Ticket, Navigation
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -14,6 +14,8 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { VerifiedBadge } from '../components/AadhaarVerification';
 import { supabase } from '../services/supabase';
+import { useLocation as useLocationCtx } from '../contexts/LocationContext';
+import { buildLocationMap, haversineDistance, formatDistance } from '../utils/location';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -263,31 +265,20 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
                   {(() => {
                     const matches = menuItems.filter(i => i.name.toLowerCase().includes(dish.toLowerCase()));
                     if (matches.length === 0) return null;
-                    return matches.map((item, idx) => {
-                      // Get all available size prices
-                      const sizePrices = [item.small_price, item.medium_price, item.large_price, item.xl_price].filter((p): p is number => p != null && p > 0);
-                      // Use flat price if available, otherwise lowest size price
-                      const effectivePrice = item.price > 0 ? item.price : (sizePrices.length > 0 ? Math.min(...sizePrices) : 0);
-                      const hasSizes = sizePrices.length > 0 && item.price === 0;
-                      const priceLabel = hasSizes
-                        ? `₹${Math.min(...sizePrices)} – ₹${Math.max(...sizePrices)}`
-                        : `₹${item.price}`;
-
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            setDish(item.name);
-                            setPrice(effectivePrice.toString());
-                            setShowDishDropdown(false);
-                          }}
-                          className="px-4 py-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer text-gray-900 dark:text-white flex justify-between items-center transition-colors"
-                        >
-                          <span className="font-medium">{item.name}</span>
-                          <span className="font-bold text-primary-600 text-sm">{priceLabel}</span>
-                        </div>
-                      );
-                    });
+                    return matches.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setDish(item.name);
+                          setPrice(item.price.toString());
+                          setShowDishDropdown(false);
+                        }}
+                        className="px-4 py-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer text-gray-900 dark:text-white flex justify-between items-center transition-colors"
+                      >
+                        <span className="font-medium">{item.name}</span>
+                        <span className="font-bold text-primary-600 text-sm">₹{item.price}</span>
+                      </div>
+                    ));
                   })()}
                 </div>
               )}
@@ -373,107 +364,6 @@ const CreateSplitModal: React.FC<CreateSplitModalProps> = ({ isOpen, onClose, on
 };
 
 // ============================================
-// EDIT SPLIT MODAL
-// ============================================
-interface EditSplitModalProps {
-  isOpen: boolean;
-  split: MealSplit;
-  onClose: () => void;
-  onSubmit: (splitId: string, updates: { people_needed: number; split_time: string; time_note: string }) => void;
-}
-
-const EditSplitModal: React.FC<EditSplitModalProps> = ({ isOpen, split, onClose, onSubmit }) => {
-  const existingDate = split.split_time ? new Date(split.split_time) : new Date();
-  const [people, setPeople] = useState(String(split.people_needed));
-  const [date, setDate] = useState(existingDate.toLocaleDateString('en-CA'));
-  const [time, setTime] = useState(existingDate.toTimeString().slice(0, 5));
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const dateTime = new Date(`${date}T${time}`);
-    if (dateTime <= new Date()) {
-      alert('Please select a future date and time.');
-      return;
-    }
-    const timeNote = dateTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    onSubmit(split.id, { people_needed: parseInt(people), split_time: dateTime.toISOString(), time_note: timeNote });
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative glass dark:glass-dark rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-                <Pencil size={20} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Split</h2>
-                <p className="text-xs text-gray-500">{split.dish_name} @ {split.vendor_name}</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
-              <X size={18} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Total People */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Total People</label>
-              <select
-                value={people}
-                onChange={(e) => setPeople(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
-                required
-              >
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <option key={num} value={num}>{num}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date & Time Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={new Date().toLocaleDateString('en-CA')}
-                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Time</label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            <Button type="submit" size="lg" className="w-full mt-2" leftIcon={<Pencil size={20} />}>
-              Save Changes
-            </Button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
 // MEAL SPLIT CARD (TICKET STYLE)
 // ============================================
 interface MealSplitCardProps {
@@ -486,7 +376,6 @@ interface MealSplitCardProps {
   onLeave: (split: MealSplit) => void;
   onComplete: (split: MealSplit) => void;
   onDelete: (split: MealSplit) => void;
-  onEdit: (split: MealSplit) => void;
   isCreatorVerified?: boolean;
 }
 
@@ -500,7 +389,6 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
   onLeave,
   onComplete,
   onDelete,
-  onEdit,
   isCreatorVerified = false,
 }) => {
   // Use participants array instead of people_joined_ids
@@ -607,8 +495,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
                 onClick={async () => {
                   const perPerson = Math.round(split.total_price / split.people_needed);
                   const shareText = `🍽️ ${split.dish_name} at ${split.vendor_name} — ₹${perPerson}/person\nJoin my meal split on Food-Hunt!`;
-                  const splitCode = split.id.slice(-6).toUpperCase();
-                  const shareUrl = `${window.location.origin}/#/splits?search=${splitCode}`;
+                  const shareUrl = `${window.location.origin}/#/splits`;
                   const fullText = `${shareText}\n${shareUrl}`;
 
                   // Always copy to clipboard
@@ -632,22 +519,13 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
               {user && (split.creator_id === user.id || user.role === 'admin') && (
                 <>
                   {!isClosed && split.creator_id === user.id && (
-                    <>
-                      <button
-                        onClick={() => onEdit(split)}
-                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="Edit Split"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => onComplete(split)}
-                        className="p-2 text-accent-success hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                        title="Mark as Complete"
-                      >
-                        <CheckSquare size={18} />
-                      </button>
-                    </>
+                    <button
+                      onClick={() => onComplete(split)}
+                      className="p-2 text-accent-success hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Mark as Complete"
+                    >
+                      <CheckSquare size={18} />
+                    </button>
                   )}
                   <button
                     onClick={() => onDelete(split)}
@@ -711,7 +589,6 @@ const MealSplits: React.FC = () => {
   const { user, updateUser, isEmailVerified } = useAuth();
   const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();
-  const location = useLocation();
   const [splits, setSplits] = useState<MealSplit[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [myRequests, setMyRequests] = useState<string[]>([]);
@@ -726,7 +603,11 @@ const MealSplits: React.FC = () => {
   const [sortBy, setSortBy] = useState<'time' | 'price' | 'slots'>('time');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [verifiedCreators, setVerifiedCreators] = useState<Set<string>>(new Set());
-  const [editingSplit, setEditingSplit] = useState<MealSplit | null>(null);
+  const [nearMe, setNearMe] = useState(false);
+
+  // Location context for Near Me filter
+  const { userCoords, campusLocations, isGPSActive, startGPS } = useLocationCtx();
+  const locationMap = useMemo(() => buildLocationMap(campusLocations), [campusLocations]);
 
   // Confirmation modal states
   const [pendingAction, setPendingAction] = useState<{
@@ -739,15 +620,6 @@ const MealSplits: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  // Read ?search= query param from URL (e.g. from chat split mention click)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const searchParam = params.get('search');
-    if (searchParam) {
-      setFilterVendor(searchParam);
-    }
-  }, [location.search]);
 
   const fetchData = async () => {
     const [splitsRes, vendorsRes] = await Promise.all([
@@ -806,12 +678,8 @@ const MealSplits: React.FC = () => {
       const joined = user && participantIds.includes(user.id);
       if (isFull && !joined && split.creator_id !== user?.id) return false;
 
-      if (filterVendor) {
-        const q = filterVendor.toLowerCase().replace(/^#/, '');
-        const matchesVendor = split.vendor_name.toLowerCase().includes(q);
-        const matchesDish = split.dish_name.toLowerCase().includes(q);
-        const matchesCode = split.id.slice(-6).toLowerCase().includes(q);
-        if (!matchesVendor && !matchesDish && !matchesCode) return false;
+      if (filterVendor && !split.vendor_name.toLowerCase().includes(filterVendor.toLowerCase())) {
+        return false;
       }
 
       if (filterDate) {
@@ -821,7 +689,31 @@ const MealSplits: React.FC = () => {
 
       return true;
     })
+    .map(split => {
+      // Calculate distance for the split's vendor
+      let distKm = Infinity;
+      if (userCoords && locationMap.size > 0) {
+        const vendor = vendors.find(v => v.id === split.vendor_id);
+        if (vendor) {
+          const coords = locationMap.get(vendor.location?.toLowerCase() || '');
+          if (coords) {
+            distKm = haversineDistance(userCoords.latitude, userCoords.longitude, coords.latitude, coords.longitude);
+          }
+        }
+      }
+      return { ...split, _distKm: distKm };
+    })
+    .filter(split => {
+      // Near Me filter: only show splits within 1km
+      if (nearMe && split._distKm === Infinity) return false;
+      if (nearMe && split._distKm > 1) return false;
+      return true;
+    })
     .sort((a, b) => {
+      // If Near Me is active, sort by distance first
+      if (nearMe) {
+        return a._distKm - b._distKm;
+      }
       const aCount = a.participants_count ?? (a.participants || []).length;
       const bCount = b.participants_count ?? (b.participants || []).length;
       switch (sortBy) {
@@ -880,24 +772,6 @@ const MealSplits: React.FC = () => {
   // Show delete confirmation modal
   const handleDelete = (split: MealSplit) => {
     setPendingAction({ type: 'delete', split, message: 'Are you sure you want to delete this split?' });
-  };
-
-  // Edit split
-  const handleEdit = (split: MealSplit) => {
-    setEditingSplit(split);
-  };
-
-  const handleEditSubmit = async (splitId: string, updates: { people_needed: number; split_time: string; time_note: string }) => {
-    if (!user) return;
-    // @ts-ignore
-    const res = await api.splits.update(splitId, user.id, updates);
-    if (res.success) {
-      setMsg('Split updated!');
-      fetchData();
-      setTimeout(() => setMsg(''), 3000);
-    } else {
-      alert(res.message);
-    }
   };
 
   // Execute the pending action
@@ -991,10 +865,7 @@ const MealSplits: React.FC = () => {
     setFilterVendor('');
     setFilterDate('');
     setSortBy('time');
-    // Clear URL search param if present
-    if (location.search) {
-      navigate('/splits', { replace: true });
-    }
+    setNearMe(false);
   };
 
   return (
@@ -1051,7 +922,7 @@ const MealSplits: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Search by vendor, dish, or #split code..."
+                  placeholder="Search by vendor name..."
                   className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-500 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
                   value={filterVendor}
                   onChange={e => setFilterVendor(e.target.value)}
@@ -1080,7 +951,22 @@ const MealSplits: React.FC = () => {
               Start a Split
             </Button>
 
-            {(filterVendor || filterDate) && (
+            <button
+              onClick={() => {
+                if (!nearMe && !isGPSActive && !userCoords) startGPS();
+                setNearMe(!nearMe);
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all border ${
+                nearMe
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                  : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-gray-500 text-gray-700 dark:text-gray-200 hover:border-blue-300'
+              }`}
+            >
+              <Navigation size={15} className={nearMe ? 'text-blue-500 animate-pulse' : 'text-gray-400'} />
+              Near Me
+            </button>
+
+            {(filterVendor || filterDate || nearMe) && (
               <button
                 onClick={clearFilters}
                 className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -1115,7 +1001,6 @@ const MealSplits: React.FC = () => {
               onLeave={handleLeave}
               onComplete={handleComplete}
               onDelete={handleDelete}
-              onEdit={handleEdit}
               isCreatorVerified={verifiedCreators.has(split.creator_id)}
             />
           ))}
@@ -1254,16 +1139,6 @@ const MealSplits: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleCreate}
           vendors={vendors}
-        />
-      )}
-
-      {/* Edit Split Modal */}
-      {editingSplit && (
-        <EditSplitModal
-          isOpen={!!editingSplit}
-          split={editingSplit}
-          onClose={() => setEditingSplit(null)}
-          onSubmit={handleEditSubmit}
         />
       )}
 
