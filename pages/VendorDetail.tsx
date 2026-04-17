@@ -4,7 +4,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor, Review, MenuItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, DollarSign, Star, ChevronLeft, Send, Flame, Trash2, Eye, X, Phone, Share2, TrendingUp, Utensils, Sparkles } from 'lucide-react';
+import { MapPin, DollarSign, Star, ChevronLeft, Send, Flame, Trash2, Eye, X, Phone, Share2, TrendingUp, Utensils, Sparkles, Navigation } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 
@@ -265,6 +266,18 @@ const VendorDetail: React.FC = () => {
         }
     };
 
+    const handleOpenMap = async () => {
+        if (!vendor?.maps_url) return;
+        try {
+            // Try Capacitor Browser plugin for native apps
+            const { Browser } = await import('@capacitor/browser');
+            await Browser.open({ url: vendor.maps_url });
+        } catch {
+            // Fallback: open in new tab (web or if plugin unavailable)
+            window.open(vendor.maps_url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center dark:text-white">Loading Vendor Details...</div>;
     if (!vendor) return <div className="p-10 text-center dark:text-white">Vendor not found.</div>;
 
@@ -315,6 +328,16 @@ const VendorDetail: React.FC = () => {
                                     <div className="flex flex-wrap gap-4 mt-3 text-white/90 text-sm font-medium">
                                         <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm"><MapPin size={14} /> {vendor.location}</span>
                                         {vendor.contact_number && <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm"><Phone size={14} /> {vendor.contact_number}</span>}
+                                        {vendor.maps_url && (
+                                            <motion.button
+                                                onClick={handleOpenMap}
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm cursor-pointer transition-colors"
+                                            >
+                                                <Navigation size={14} /> View on Map
+                                            </motion.button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

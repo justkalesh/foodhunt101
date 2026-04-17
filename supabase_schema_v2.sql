@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS public.vendors (
   recommended_item_price numeric,
   is_featured boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone
+  updated_at timestamp with time zone,
+  maps_url text                       -- Google Maps share link
 );
 
 -- REVIEWS TABLE
