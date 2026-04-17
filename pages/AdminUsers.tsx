@@ -84,8 +84,12 @@ const AdminUsers: React.FC = () => {
     const newRole = targetUser.role === UserRole.ADMIN ? UserRole.STUDENT : UserRole.ADMIN;
     const confirmMsg = `Change ${targetUser.name}'s role from ${targetUser.role.toUpperCase()} to ${newRole.toUpperCase()}?`;
     if (!confirm(confirmMsg)) return;
-    await api.admin.users.update(targetUser.id, { role: newRole });
-    fetchUsers();
+    const res = await api.admin.users.update(targetUser.id, { role: newRole });
+    if (res.success) {
+      fetchUsers();
+    } else {
+      alert(`Failed to change role: ${res.message}`);
+    }
   };
 
   const handleEditUser = (u: User) => {
@@ -162,18 +166,20 @@ const AdminUsers: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: isAllUsers ? 'ALL' : pushTarget.id,
           title: pushData.title,
           body: pushData.body,
-          targetUserId: isAllUsers ? null : pushTarget.id,
-          sendToAll: isAllUsers
         })
       });
       const data = await response.json();
       if (data.success) {
-        alert(data.message);
+        const msg = data.successCount != null
+          ? `Sent to ${data.successCount} device(s)${data.failureCount ? `, ${data.failureCount} failed` : ''}`
+          : 'Notification sent!';
+        alert(msg);
         setIsPushModalOpen(false);
       } else {
-        alert(data.message);
+        alert(data.message || data.error || 'Failed to send notification');
       }
     } catch (err: any) {
       alert('Failed to send: ' + err.message);
