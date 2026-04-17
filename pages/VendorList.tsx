@@ -153,7 +153,7 @@ const VendorList: React.FC = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Header */}
-      <div className="relative overflow-hidden border-b border-gray-100 dark:border-gray-800">
+      <div className="relative overflow-hidden border-b border-gray-100 dark:border-gray-800 z-0">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-accent-sky/10 rounded-full blur-3xl" />
@@ -175,7 +175,7 @@ const VendorList: React.FC = () => {
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Search & Filter Bar */}
-        <div className="glass dark:glass-dark rounded-2xl p-4 mb-8 shadow-lg">
+        <div className="glass dark:glass-dark rounded-2xl p-4 mb-8 shadow-lg relative z-20">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
               <Filter size={18} />

@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
 import { MealSplit, Vendor } from '../types';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Clock, PlusCircle, X, Search, MapPin, CheckSquare, Share2,
-  Filter, Calendar, Store, Utensils, Sparkles, Ticket
+  Filter, Calendar, Store, Utensils, Sparkles, Ticket, Navigation
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -14,6 +14,8 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { VerifiedBadge } from '../components/AadhaarVerification';
 import { supabase } from '../services/supabase';
+import { useLocation as useLocationCtx } from '../contexts/LocationContext';
+import { buildLocationMap, haversineDistance, formatDistance } from '../utils/location';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -601,6 +603,11 @@ const MealSplits: React.FC = () => {
   const [sortBy, setSortBy] = useState<'time' | 'price' | 'slots'>('time');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [verifiedCreators, setVerifiedCreators] = useState<Set<string>>(new Set());
+  const [nearMe, setNearMe] = useState(false);
+
+  // Location context for Near Me filter
+  const { userCoords, campusLocations, isGPSActive, startGPS } = useLocationCtx();
+  const locationMap = useMemo(() => buildLocationMap(campusLocations), [campusLocations]);
 
   // Confirmation modal states
   const [pendingAction, setPendingAction] = useState<{
@@ -682,7 +689,31 @@ const MealSplits: React.FC = () => {
 
       return true;
     })
+    .map(split => {
+      // Calculate distance for the split's vendor
+      let distKm = Infinity;
+      if (userCoords && locationMap.size > 0) {
+        const vendor = vendors.find(v => v.id === split.vendor_id);
+        if (vendor) {
+          const coords = locationMap.get(vendor.location?.toLowerCase() || '');
+          if (coords) {
+            distKm = haversineDistance(userCoords.latitude, userCoords.longitude, coords.latitude, coords.longitude);
+          }
+        }
+      }
+      return { ...split, _distKm: distKm };
+    })
+    .filter(split => {
+      // Near Me filter: only show splits within 1km
+      if (nearMe && split._distKm === Infinity) return false;
+      if (nearMe && split._distKm > 1) return false;
+      return true;
+    })
     .sort((a, b) => {
+      // If Near Me is active, sort by distance first
+      if (nearMe) {
+        return a._distKm - b._distKm;
+      }
       const aCount = a.participants_count ?? (a.participants || []).length;
       const bCount = b.participants_count ?? (b.participants || []).length;
       switch (sortBy) {
@@ -834,6 +865,7 @@ const MealSplits: React.FC = () => {
     setFilterVendor('');
     setFilterDate('');
     setSortBy('time');
+    setNearMe(false);
   };
 
   return (
@@ -919,7 +951,22 @@ const MealSplits: React.FC = () => {
               Start a Split
             </Button>
 
-            {(filterVendor || filterDate) && (
+            <button
+              onClick={() => {
+                if (!nearMe && !isGPSActive && !userCoords) startGPS();
+                setNearMe(!nearMe);
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all border ${
+                nearMe
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                  : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-gray-500 text-gray-700 dark:text-gray-200 hover:border-blue-300'
+              }`}
+            >
+              <Navigation size={15} className={nearMe ? 'text-blue-500 animate-pulse' : 'text-gray-400'} />
+              Near Me
+            </button>
+
+            {(filterVendor || filterDate || nearMe) && (
               <button
                 onClick={clearFilters}
                 className="text-sm text-primary-600 hover:text-primary-700 font-medium"
