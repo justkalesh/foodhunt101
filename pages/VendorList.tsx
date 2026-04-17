@@ -1,14 +1,17 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
-import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles } from 'lucide-react';
+import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles, Navigation } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useVendorRealtime } from '../hooks/useVendorRealtime';
 import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
+import { useLocation } from '../contexts/LocationContext';
+import { buildLocationMap, calculateVendorDistances, formatDistance } from '../utils/location';
+import LocationSelector from '../components/LocationSelector';
 
 const VendorList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +75,30 @@ const VendorList: React.FC = () => {
   }, []);
   useVendorRealtime(handleRealtimeUpdate);
 
+  // Location-based sorting
+  const { userCoords, campusLocations, isGPSActive, startGPS } = useLocation();
+  const [vendorDistances, setVendorDistances] = useState<Map<string, number>>(new Map());
+
+  // Build location lookup map (memoized)
+  const locationMap = useMemo(() => buildLocationMap(campusLocations), [campusLocations]);
+
+  // Auto-start GPS on first mount
+  useEffect(() => {
+    if (!isGPSActive && !userCoords) {
+      startGPS();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recalculate distances whenever location or vendors change
+  useEffect(() => {
+    if (userCoords && vendors.length > 0 && locationMap.size > 0) {
+      const distances = calculateVendorDistances(vendors, locationMap, userCoords.latitude, userCoords.longitude);
+      setVendorDistances(distances);
+      // Auto-enable distance sort when location becomes available
+      if (!sortBy) setSortBy('distance');
+    }
+  }, [userCoords?.latitude, userCoords?.longitude, vendors, locationMap]);
+
   useEffect(() => {
     let res = [...vendors];
 
@@ -98,7 +125,9 @@ const VendorList: React.FC = () => {
     }
 
     // Sorting
-    if (sortBy === 'avg_asc') {
+    if (sortBy === 'distance' && vendorDistances.size > 0) {
+      res.sort((a, b) => (vendorDistances.get(a.id) ?? Infinity) - (vendorDistances.get(b.id) ?? Infinity));
+    } else if (sortBy === 'avg_asc') {
       res.sort((a, b) => a.avg_price_per_meal - b.avg_price_per_meal);
     } else if (sortBy === 'avg_desc') {
       res.sort((a, b) => b.avg_price_per_meal - a.avg_price_per_meal);
@@ -117,7 +146,7 @@ const VendorList: React.FC = () => {
     }
 
     setFiltered(res);
-  }, [search, vendors, sortBy, selectedLocations, selectedOrigins, hiddenGemsOnly]);
+  }, [search, vendors, sortBy, selectedLocations, selectedOrigins, hiddenGemsOnly, vendorDistances]);
 
   if (loading) return <PageLoading message="Loading campus vendors..." />;
 
@@ -175,6 +204,8 @@ const VendorList: React.FC = () => {
             >
               Filters
             </Button>
+
+            <LocationSelector />
 
             {(search || selectedLocations.length > 0 || selectedOrigins.length > 0) && (
               <button
@@ -260,6 +291,12 @@ const VendorList: React.FC = () => {
                     <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm">
                       <MapPin size={12} />
                       <span className="truncate">{vendor.location}</span>
+                      {vendorDistances.has(vendor.id) && vendorDistances.get(vendor.id)! < Infinity && (
+                        <span className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                          <Navigation size={10} />
+                          {formatDistance(vendorDistances.get(vendor.id)!)}
+                        </span>
+                      )}
                     </div>
                   </div>
 

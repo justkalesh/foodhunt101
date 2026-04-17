@@ -1,10 +1,11 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { generateBotResponse } from '../services/geminiService';
 import { api } from '../services/mockDatabase';
-import { Link, useLocation } from 'react-router-dom'; // Import Link and useLocation
-import { Vendor } from '../types'; // Import Vendor
+import { Link, useLocation } from 'react-router-dom';
+import { Vendor } from '../types';
+import { useLocation as useLocationCtx } from '../contexts/LocationContext';
+import { buildLocationMap, calculateVendorDistances, formatDistance } from '../utils/location';
 
 const Chatbot: React.FC = () => {
     const location = useLocation();
@@ -14,8 +15,12 @@ const Chatbot: React.FC = () => {
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [vendors, setVendors] = useState<Vendor[]>([]); // Store vendors
+    const [vendors, setVendors] = useState<Vendor[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Location context for nearby vendor recommendations
+    const { userCoords, selectedLabel, campusLocations } = useLocationCtx();
+    const locationMap = useMemo(() => buildLocationMap(campusLocations), [campusLocations]);
 
     // State to track if floating action bar is visible (for mobile positioning)
     const [floatingBarVisible, setFloatingBarVisible] = useState(false);
@@ -124,6 +129,26 @@ const Chatbot: React.FC = () => {
                 }
 
                 context = JSON.stringify(contextObj);
+
+                // Inject location-based context if available
+                if (userCoords && locationMap.size > 0 && vendorsRes.success && vendorsRes.data) {
+                  const distances = calculateVendorDistances(vendorsRes.data, locationMap, userCoords.latitude, userCoords.longitude);
+                  const sorted = [...vendorsRes.data]
+                    .map(v => ({ name: v.name, distance: distances.get(v.id) ?? Infinity }))
+                    .filter(v => v.distance < Infinity)
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 8)
+                    .map(v => ({ name: v.name, distance: formatDistance(v.distance) }));
+
+                  const locationContext = {
+                    user_is_near: selectedLabel,
+                    closest_vendors: sorted,
+                  };
+                  // Append to existing context
+                  const parsed = JSON.parse(context);
+                  parsed.user_location = locationContext;
+                  context = JSON.stringify(parsed);
+                }
             } catch (err) {
                 console.error("Error fetching context:", err);
             }
