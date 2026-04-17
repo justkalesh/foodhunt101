@@ -4,6 +4,9 @@ import { User, AuthResponse, UserRole } from '../types';
 import { supabase } from '../services/supabase';
 import { api } from '../services/mockDatabase';
 
+// Production custom domain — Supabase redirects go here, not the default Cloudflare Pages domain
+const SITE_URL = import.meta.env.PROD ? 'https://food-hunt.app' : window.location.origin;
+
 // Generate a unique 6-digit UID
 const generateUniqueUid = async (): Promise<string> => {
   const maxAttempts = 10;
@@ -242,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: SITE_URL
       }
     });
     if (error) return { success: false, message: error.message };
@@ -305,7 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: SITE_URL,
       });
       if (error) return { success: false, message: error.message };
       return { success: true, message: 'Password reset email sent! Check your inbox.' };
