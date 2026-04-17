@@ -341,6 +341,7 @@ const AdminVendors: React.FC = () => {
       logo_url: '',
       menu_image_urls: [],
       contact_number: '',
+      maps_url: '',
       popularity_score: 80, is_active: true,
       sort_order: nextSortOrder, is_featured: false
     });
@@ -510,6 +511,18 @@ const AdminVendors: React.FC = () => {
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contact Number</label>
                 <input name="contact_number" type="text" value={currentVendor.contact_number || ''} onChange={handleChange} className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Maps Link</label>
+                <input
+                  name="maps_url"
+                  type="url"
+                  placeholder="https://maps.app.goo.gl/... or https://goo.gl/maps/..."
+                  value={currentVendor.maps_url || ''}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-xl dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                />
+                <p className="text-xs text-gray-400 mt-1">Paste the share link from Google Maps</p>
               </div>
               <div className="md:col-span-2">
                 <ImageUpload

@@ -48,6 +48,8 @@ export interface Vendor {
   is_featured?: boolean;
   created_at: string;
   updated_at?: string;
+  // Google Maps
+  maps_url?: string;
   // Computed fields for UI
   rating_avg?: number;
   rating_count?: number;
