@@ -1,13 +1,14 @@
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor, Review, MenuItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, DollarSign, Star, ChevronLeft, Send, Flame, Trash2, Eye, X, Phone, Share2, TrendingUp, Utensils, Sparkles, Navigation } from 'lucide-react';
+import { MapPin, DollarSign, Star, ChevronLeft, Send, Flame, Trash2, Eye, X, Phone, Share2, TrendingUp, Utensils, Sparkles, Navigation, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
+import { useVendorRealtime } from '../hooks/useVendorRealtime';
+import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -213,6 +214,14 @@ const VendorDetail: React.FC = () => {
         fetchData();
     }, [id]);
 
+    // Real-time vendor status updates
+    const handleRealtimeUpdate = useCallback((updated: Partial<Vendor> & { id: string }) => {
+        if (updated.id === id) {
+            setVendor(prev => prev ? { ...prev, ...updated } : prev);
+        }
+    }, [id]);
+    useVendorRealtime(handleRealtimeUpdate);
+
     const handleSubmitReview = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !id) return;
@@ -281,11 +290,6 @@ const VendorDetail: React.FC = () => {
     if (loading) return <div className="min-h-screen flex items-center justify-center dark:text-white">Loading Vendor Details...</div>;
     if (!vendor) return <div className="p-10 text-center dark:text-white">Vendor not found.</div>;
 
-    const rushColors: Record<string, string> = {
-        high: 'from-red-500 to-rose-600',
-        mid: 'from-yellow-500 to-amber-600',
-        low: 'from-green-500 to-emerald-600',
-    };
 
     return (
         <>
@@ -351,18 +355,43 @@ const VendorDetail: React.FC = () => {
                     {/* LEFT COLUMN */}
                     <div className="md:col-span-2 space-y-6">
 
+                        {/* OUT OF ORDER BANNER */}
+                        {vendor.is_accepting_orders === false && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-center gap-3"
+                            >
+                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle size={20} className="text-red-600" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-red-700 dark:text-red-400">Currently Not Accepting Orders</p>
+                                    <p className="text-sm text-red-600/70 dark:text-red-400/70">This vendor is temporarily closed. Please check back later.</p>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* BENTO STATS GRID */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {/* Rush Level Card */}
-                            <div className={`col-span-1 bg-gradient-to-br ${rushColors[vendor.rush_level] || rushColors.low} p-5 rounded-2xl text-white relative overflow-hidden shadow-lg`}>
-                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                    <span className="text-xs font-medium uppercase tracking-wider opacity-80">Live</span>
-                                </div>
-                                <Flame size={24} className="mb-2 opacity-80" />
-                                <div className="text-xs uppercase tracking-wider opacity-80">Rush Level</div>
-                                <div className="text-2xl font-bold uppercase mt-1">{vendor.rush_level}</div>
-                            </div>
+                            {/* Traffic Level Card (dynamic) */}
+                            {(() => {
+                                const tc = getEffectiveTrafficConfig(vendor);
+                                return (
+                                    <div className={`col-span-1 bg-gradient-to-br ${tc.bgGradient} p-5 rounded-2xl text-white relative overflow-hidden shadow-lg`}>
+                                        {tc.isLive && (
+                                            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                                                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                                <span className="text-xs font-medium uppercase tracking-wider opacity-80">Live</span>
+                                            </div>
+                                        )}
+                                        <Flame size={24} className="mb-2 opacity-80" />
+                                        <div className="text-xs uppercase tracking-wider opacity-80">Traffic</div>
+                                        <div className="text-2xl font-bold mt-1">{tc.label}</div>
+                                        <div className="text-xs opacity-70 mt-1">{tc.description}</div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Price Card */}
                             <div className="col-span-1 bg-gradient-to-br from-white to-orange-50/50 dark:bg-none dark:bg-dark-800 p-5 rounded-2xl border dark:border-gray-700 shadow-sm">

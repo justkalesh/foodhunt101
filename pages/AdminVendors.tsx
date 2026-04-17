@@ -3,10 +3,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/mockDatabase';
-import { UserRole, Vendor, MenuItem } from '../types';
-import { Trash2, Edit, Plus, X, AlertTriangle, Utensils, Star, Camera, Loader2 } from 'lucide-react';
+import { UserRole, Vendor, MenuItem, TrafficLevel } from '../types';
+import { Trash2, Edit, Plus, X, AlertTriangle, Utensils, Star, Camera, Loader2, Signal } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import ImageUpload from '../components/ui/ImageUpload';
+import { TRAFFIC_CONFIG } from '../utils/vendorStatus';
 
 const AdminVendors: React.FC = () => {
   const { user } = useAuth();
@@ -53,6 +55,10 @@ const AdminVendors: React.FC = () => {
   // Menu Scanning State
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Live Status Modal State
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [statusVendor, setStatusVendor] = useState<Vendor | null>(null);
 
   useEffect(() => {
     if (user && user.role !== UserRole.ADMIN) {
@@ -450,6 +456,9 @@ const AdminVendors: React.FC = () => {
                   </button>
                   <button onClick={() => openMenuModal(vendor)} className="text-secondary-600 hover:text-secondary-900 dark:hover:text-secondary-400 inline-flex items-center gap-1" title="Manage Menu">
                     <Utensils size={16} />
+                  </button>
+                  <button onClick={() => { setStatusVendor(vendor); setIsStatusModalOpen(true); }} className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 inline-flex items-center gap-1" title="Live Status">
+                    <Signal size={16} />
                   </button>
                   <button onClick={() => promptDelete(vendor.id)} className="text-red-600 hover:text-red-900 dark:hover:text-red-400 inline-flex items-center gap-1">
                     <Trash2 size={16} />
@@ -873,6 +882,76 @@ const AdminVendors: React.FC = () => {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Live Status Modal */}
+      {isStatusModalOpen && statusVendor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-slate-700">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Status</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{statusVendor.name}</p>
+              </div>
+              <button onClick={() => setIsStatusModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400"><X size={20} /></button>
+            </div>
+            <div className="p-5 space-y-6">
+              {/* Accepting Orders Toggle */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Accepting Orders</span>
+                  <motion.button
+                    className={`w-14 h-7 rounded-full p-1 flex items-center ${statusVendor.is_accepting_orders !== false ? 'bg-green-500 justify-end' : 'bg-red-500 justify-start'}`}
+                    onClick={async () => {
+                      const newVal = statusVendor.is_accepting_orders === false;
+                      await api.admin.vendors.update(statusVendor.id, { is_accepting_orders: newVal } as any);
+                      setStatusVendor({ ...statusVendor, is_accepting_orders: newVal });
+                      setVendors(prev => prev.map(v => v.id === statusVendor.id ? { ...v, is_accepting_orders: newVal } : v));
+                    }}
+                    layout
+                  >
+                    <motion.div className="w-5 h-5 bg-white rounded-full shadow-md" layout transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                  </motion.button>
+                </div>
+                <p className={`text-xs ${statusVendor.is_accepting_orders !== false ? 'text-green-600' : 'text-red-500'}`}>
+                  {statusVendor.is_accepting_orders !== false ? 'Vendor is open and accepting orders' : 'Vendor is temporarily closed (stays until you change it)'}
+                </p>
+              </div>
+
+              {/* Traffic Level Segmented Control */}
+              <div>
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300 block mb-3">Traffic Level</span>
+                <div className="grid grid-cols-4 gap-2">
+                  {(['low', 'moderate', 'high', 'very_busy'] as TrafficLevel[]).map(level => {
+                    const cfg = TRAFFIC_CONFIG[level];
+                    const isActive = statusVendor.traffic_level === level &&
+                      (!statusVendor.traffic_level_expires_at || new Date(statusVendor.traffic_level_expires_at) > new Date());
+                    return (
+                      <button
+                        key={level}
+                        onClick={async () => {
+                          const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+                          await api.admin.vendors.update(statusVendor.id, { traffic_level: level, traffic_level_expires_at: expiresAt } as any);
+                          setStatusVendor({ ...statusVendor, traffic_level: level, traffic_level_expires_at: expiresAt });
+                          setVendors(prev => prev.map(v => v.id === statusVendor.id ? { ...v, traffic_level: level, traffic_level_expires_at: expiresAt } : v));
+                        }}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border-2 ${
+                          isActive
+                            ? `${cfg.badgeBg} border-current shadow-sm`
+                            : 'bg-gray-50 dark:bg-slate-800 border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className={`inline-block w-2 h-2 rounded-full ${cfg.dotClass} mb-1`} />
+                        <br />
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Traffic level auto-resets to baseline after 2 hours</p>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
@@ -7,6 +7,8 @@ import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles } from 'lucide-
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { useVendorRealtime } from '../hooks/useVendorRealtime';
+import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
 
 const VendorList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +65,12 @@ const VendorList: React.FC = () => {
     };
     fetch();
   }, []);
+
+  // Real-time vendor status updates
+  const handleRealtimeUpdate = useCallback((updated: Partial<Vendor> & { id: string }) => {
+    setVendors(prev => prev.map(v => v.id === updated.id ? { ...v, ...updated } : v));
+  }, []);
+  useVendorRealtime(handleRealtimeUpdate);
 
   useEffect(() => {
     let res = [...vendors];
@@ -198,8 +206,15 @@ const VendorList: React.FC = () => {
                     src={vendor.logo_url || vendor.menu_image_urls?.[0]}
                     alt={vendor.name}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${vendor.is_accepting_orders === false ? 'grayscale opacity-60' : ''}`}
                   />
+
+                  {/* Unavailable Overlay */}
+                  {vendor.is_accepting_orders === false && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <span className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg">Currently Unavailable</span>
+                    </div>
+                  )}
 
                   {/* Badges */}
                   <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
@@ -224,8 +239,9 @@ const VendorList: React.FC = () => {
                   {/* Header Row */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate flex items-center gap-2">
                         {vendor.name}
+                        {(() => { const tc = getEffectiveTrafficConfig(vendor); return <span className={`inline-block w-2 h-2 rounded-full ${tc.dotClass} flex-shrink-0`} title={`Traffic: ${tc.label}`} />; })()}
                       </h3>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {[...Array(5)].map((_, i) => (
