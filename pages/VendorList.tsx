@@ -175,14 +175,14 @@ const VendorList: React.FC = () => {
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Search & Filter Bar */}
-        <div className="glass dark:glass-dark rounded-2xl p-4 mb-8 shadow-lg relative z-20">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+        <div className="glass dark:glass-dark rounded-2xl p-3 sm:p-4 mb-6 sm:mb-8 shadow-lg relative z-20">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-gray-500 dark:text-gray-400">
               <Filter size={18} />
               <span className="text-sm font-medium">Search</span>
             </div>
 
-            <div className="flex-1 min-w-[200px]">
+            <div className="flex-1 min-w-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -194,13 +194,17 @@ const VendorList: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Action buttons row */}
+          <div className="flex items-center gap-2 sm:gap-3 mt-3 overflow-x-auto scrollbar-hide">
 
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsFilterOpen(true)}
               leftIcon={<Filter size={16} />}
-              className="!bg-white dark:!bg-slate-700 border border-gray-200 dark:border-gray-500"
+              className="!bg-white dark:!bg-slate-700 border border-gray-200 dark:border-gray-500 flex-shrink-0"
             >
               Filters
             </Button>
@@ -210,12 +214,11 @@ const VendorList: React.FC = () => {
             {(search || selectedLocations.length > 0 || selectedOrigins.length > 0) && (
               <button
                 onClick={clearFilters}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap flex-shrink-0"
               >
                 Clear All
               </button>
             )}
-          </div>
         </div>
 
         {/* Vendor Grid */}
