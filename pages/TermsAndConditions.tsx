@@ -1,8 +1,14 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const TermsAndConditions: React.FC = () => {
+    usePageMeta({
+        title: 'Terms & Conditions — Food-Hunt',
+        description: 'Read the terms and conditions for using Food-Hunt, the campus food discovery platform for LPU students.',
+        canonicalPath: '/terms',
+    });
     const navigate = useNavigate();
 
     return (

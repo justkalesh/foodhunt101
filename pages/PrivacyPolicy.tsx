@@ -1,8 +1,14 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const PrivacyPolicy: React.FC = () => {
+    usePageMeta({
+        title: 'Privacy Policy — Food-Hunt',
+        description: 'Our privacy policy explains how Food-Hunt collects, uses, and protects your personal data. Read about our data practices.',
+        canonicalPath: '/privacy',
+    });
     const navigate = useNavigate();
 
     return (

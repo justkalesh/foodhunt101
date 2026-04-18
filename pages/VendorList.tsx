@@ -12,8 +12,14 @@ import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
 import { useLocation } from '../contexts/LocationContext';
 import { buildLocationMap, calculateVendorDistances, formatDistance } from '../utils/location';
 import LocationSelector from '../components/LocationSelector';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const VendorList: React.FC = () => {
+  usePageMeta({
+    title: 'Campus Food Vendors Near You — Food-Hunt',
+    description: 'Browse 10+ campus food vendors at LPU. Filter by cuisine, price, location, and discover hidden gems. Find the best food spots near you.',
+    canonicalPath: '/vendors',
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [filtered, setFiltered] = useState<Vendor[]>([]);

@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useVendorRealtime } from '../hooks/useVendorRealtime';
 import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -287,9 +288,62 @@ const VendorDetail: React.FC = () => {
         }
     };
 
+    // SEO: Dynamic page meta for this vendor (must be before early returns)
+    usePageMeta({
+        title: vendor ? `${vendor.name} — Food-Hunt` : 'Loading Vendor... — Food-Hunt',
+        description: vendor
+            ? (vendor.description || `Discover ${vendor.name} at ${vendor.location}. ${vendor.cuisine} cuisine starting from ₹${vendor.lowest_item_price}. Read reviews and view the menu on Food-Hunt.`)
+            : 'Loading vendor details on Food-Hunt.',
+        canonicalPath: `/vendors/${id}`,
+        ogImage: vendor ? (vendor.logo_url || vendor.menu_image_urls?.[0] || undefined) : undefined,
+    });
+
+    // SEO: Inject JSON-LD structured data for this vendor
+    useEffect(() => {
+        if (!vendor) return;
+        const jsonLd = {
+            "@context": "https://schema.org",
+            "@type": "Restaurant",
+            "name": vendor.name,
+            "description": vendor.description,
+            "image": vendor.menu_image_urls?.[0] || vendor.logo_url,
+            "url": `https://food-hunt.app/vendors/${id}`,
+            "servesCuisine": vendor.cuisine,
+            "priceRange": `₹${vendor.lowest_item_price} - ₹${vendor.avg_price_per_meal * 2}`,
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": vendor.location,
+                "addressRegion": "Punjab",
+                "addressCountry": "IN"
+            },
+            ...(vendor.rating_avg ? {
+                "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": vendor.rating_avg,
+                    "reviewCount": vendor.rating_count || 0,
+                    "bestRating": 5,
+                    "worstRating": 1
+                }
+            } : {}),
+        };
+
+        let script = document.getElementById('vendor-jsonld') as HTMLScriptElement | null;
+        if (!script) {
+            script = document.createElement('script');
+            script.id = 'vendor-jsonld';
+            script.type = 'application/ld+json';
+            document.head.appendChild(script);
+        }
+        script.textContent = JSON.stringify(jsonLd);
+
+        return () => {
+            const el = document.getElementById('vendor-jsonld');
+            if (el) el.remove();
+        };
+    }, [vendor, id]);
+
     if (loading) return <div className="min-h-screen flex items-center justify-center dark:text-white">Loading Vendor Details...</div>;
     if (!vendor) return <div className="p-10 text-center dark:text-white">Vendor not found.</div>;
-
 
     return (
         <>

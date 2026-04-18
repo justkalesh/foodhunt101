@@ -11,8 +11,15 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import ImageUpload from '../components/ui/ImageUpload';
 import AadhaarVerification, { VerifiedBadge } from '../components/AadhaarVerification';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const Profile: React.FC = () => {
+   usePageMeta({
+     title: 'My Profile — Food-Hunt',
+     description: 'Manage your Food-Hunt profile, view your activity, reviews, and meal splits.',
+     canonicalPath: '/profile',
+     noIndex: true,
+   });
    const { user, logout, updateUser } = useAuth();
    const { userId } = useParams<{ userId: string }>();
    const { theme, setTheme } = useTheme();

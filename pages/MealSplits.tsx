@@ -16,6 +16,7 @@ import { VerifiedBadge } from '../components/AadhaarVerification';
 import { supabase } from '../services/supabase';
 import { useLocation as useLocationCtx } from '../contexts/LocationContext';
 import { buildLocationMap, haversineDistance, formatDistance } from '../utils/location';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -495,7 +496,7 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
                 onClick={async () => {
                   const perPerson = Math.round(split.total_price / split.people_needed);
                   const shareText = `🍽️ ${split.dish_name} at ${split.vendor_name} — ₹${perPerson}/person\nJoin my meal split on Food-Hunt!`;
-                  const shareUrl = `${window.location.origin}/#/splits`;
+                  const shareUrl = `${window.location.origin}/splits`;
                   const fullText = `${shareText}\n${shareUrl}`;
 
                   // Always copy to clipboard
@@ -586,6 +587,11 @@ const MealSplitCard: React.FC<MealSplitCardProps> = ({
 // MAIN COMPONENT
 // ============================================
 const MealSplits: React.FC = () => {
+  usePageMeta({
+    title: 'Meal Splits — Share Food & Save Money | Food-Hunt',
+    description: 'Find people to split meals with at LPU campus. Save up to 50% on food by sharing with fellow students. Join or create a meal split today.',
+    canonicalPath: '/splits',
+  });
   const { user, updateUser, isEmailVerified } = useAuth();
   const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();

@@ -4,15 +4,69 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Food-Hunt</title>
+  <title>Food-Hunt — Campus Food Discovery at LPU</title>
   <meta name="description" content="Food-Hunt — Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
+  <meta name="theme-color" content="#f97316" />
   <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="canonical" href="https://food-hunt.app/" />
 
-  <!-- Supabase Password Recovery detection - runs BEFORE React/HashRouter -->
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://food-hunt.app/" />
+  <meta property="og:title" content="Food-Hunt — Campus Food Discovery at LPU" />
+  <meta property="og:description" content="Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
+  <meta property="og:image" content="https://food-hunt.app/og-image.png" />
+  <meta property="og:site_name" content="Food-Hunt" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Food-Hunt — Campus Food Discovery at LPU" />
+  <meta name="twitter:description" content="Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
+  <meta name="twitter:image" content="https://food-hunt.app/og-image.png" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Food-Hunt",
+    "alternateName": "FoodHunt",
+    "url": "https://food-hunt.app",
+    "description": "Campus food discovery and meal-splitting platform for LPU students.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://food-hunt.app/vendors?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Food-Hunt",
+    "url": "https://food-hunt.app",
+    "logo": "https://food-hunt.app/logo.png",
+    "sameAs": [
+      "https://github.com/justkalesh",
+      "https://www.linkedin.com/in/justkalesh/",
+      "https://www.instagram.com/kalash.who/"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "foodhunt101lpu@gmail.com",
+      "contactType": "customer support"
+    }
+  }
+  </script>
+
+  <!-- Supabase Password Recovery detection - works with both BrowserRouter and HashRouter -->
   <script>
     (function () {
       var hash = window.location.hash;
-      if (hash && hash.indexOf('type=recovery') !== -1) {
+      var search = window.location.search;
+      if ((hash && hash.indexOf('type=recovery') !== -1) ||
+          (search && search.indexOf('type=recovery') !== -1)) {
         sessionStorage.setItem('supabase_password_recovery', 'true');
       }
     })();

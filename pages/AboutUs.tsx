@@ -13,8 +13,14 @@ import {
     Sparkles
 } from 'lucide-react';
 import MegaFooter from '../components/MegaFooter';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const AboutUs: React.FC = () => {
+    usePageMeta({
+        title: 'About Food-Hunt — Our Story',
+        description: 'Learn about Food-Hunt, the campus food discovery platform built for LPU students. Meet the developer and discover our mission.',
+        canonicalPath: '/about',
+    });
     const navigate = useNavigate();
 
     const socialLinks = [

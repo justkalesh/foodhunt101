@@ -3,8 +3,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const ResetPassword: React.FC = () => {
+  usePageMeta({
+    title: 'Reset Password — Food-Hunt',
+    description: 'Reset your Food-Hunt account password.',
+    canonicalPath: '/reset-password',
+    noIndex: true,
+  });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');

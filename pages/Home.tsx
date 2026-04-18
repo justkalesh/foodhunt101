@@ -3,10 +3,17 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Search, Users, Star, Sparkles, Utensils, Award } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 
 const Home: React.FC = () => {
   const { user } = useAuth();
+
+  usePageMeta({
+    title: 'Food-Hunt — Campus Food Discovery at LPU',
+    description: 'Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students.',
+    canonicalPath: '/',
+  });
 
   return (
     <div className="min-h-screen">
