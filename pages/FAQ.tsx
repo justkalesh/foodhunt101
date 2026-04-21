@@ -30,7 +30,7 @@ const FAQ_DATA = [
     },
     {
         question: 'Is Food-Hunt only for the LPU campus?',
-        answer: 'Yes! Right now, the platform is exclusively built to help LPU students navigate campus food options and save money.',
+        answer: 'Yes! Right now, the platform is only build to help LPU students but in future we are planning to expand it to other universities.',
     },
     {
         question: "I'm a vendor. How do I get my menu listed on the app?",
