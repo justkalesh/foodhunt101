@@ -28,6 +28,13 @@
     <priority>0.6</priority>
   </url>
 
+  <!-- FAQ -->
+  <url>
+    <loc>https://food-hunt.app/faq</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
   <!-- Team -->
   <url>
     <loc>https://food-hunt.app/team</loc>

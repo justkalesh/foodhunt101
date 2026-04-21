@@ -132,6 +132,14 @@ const MegaFooter: React.FC = () => {
                             </li>
                             <li>
                                 <Link
+                                    to="/faq"
+                                    className="text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors duration-200 text-sm"
+                                >
+                                    FAQs
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     to="/about"
                                     className="text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors duration-200 text-sm"
                                 >
