@@ -23,6 +23,9 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['logo.png', 'index.css', 'firebase-messaging-sw.js'],
         workbox: {
+          // Force the new SW to activate immediately (fixes stale cache on iPhone)
+          skipWaiting: true,
+          clientsClaim: true,
           // Import Firebase messaging into the PWA service worker
           importScripts: ['https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js'],
           runtimeCaching: [
@@ -46,12 +49,12 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           icons: [
             {
-              src: 'logo.png',
+              src: 'icon-192x192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'logo.png',
+              src: 'icon-512x512.png',
               sizes: '512x512',
               type: 'image/png'
             }
@@ -274,6 +277,12 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
+
+    build: {
+      // Explicitly target older Safari/iOS for iPhone compatibility
+      target: ['es2020', 'safari13'],
+      cssTarget: ['safari13'],
+    },
 
     resolve: {
       alias: {

@@ -2,8 +2,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const Register: React.FC = () => {
+  usePageMeta({
+    title: 'Create Account — Food-Hunt',
+    description: 'Join Food-Hunt to discover campus food vendors, split meals with friends, and save money at LPU. Sign up for free today.',
+    canonicalPath: '/register',
+  });
   const navigate = useNavigate();
   const { signup, signInWithGoogle } = useAuth();
 

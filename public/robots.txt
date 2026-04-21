@@ -1,0 +1,13 @@
+# Food-Hunt Robots.txt
+# https://food-hunt.app
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /complete-profile
+Disallow: /inbox
+Disallow: /reset-password
+
+# Sitemap
+Sitemap: https://food-hunt.app/sitemap.xml

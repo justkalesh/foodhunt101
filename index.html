@@ -4,15 +4,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Food-Hunt</title>
+  <title>Food-Hunt — Campus Food Discovery at LPU</title>
   <meta name="description" content="Food-Hunt — Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
-  <link rel="icon" type="image/png" href="/logo.png" />
+  <meta name="theme-color" content="#f97316" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="canonical" href="https://food-hunt.app/" />
 
-  <!-- Supabase Password Recovery detection - runs BEFORE React/HashRouter -->
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://food-hunt.app/" />
+  <meta property="og:title" content="Food-Hunt — Campus Food Discovery at LPU" />
+  <meta property="og:description" content="Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
+  <meta property="og:image" content="https://food-hunt.app/og-image.png" />
+  <meta property="og:site_name" content="Food-Hunt" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Food-Hunt — Campus Food Discovery at LPU" />
+  <meta name="twitter:description" content="Discover campus food vendors, split meals with friends, and save money. The ultimate campus food companion for LPU students." />
+  <meta name="twitter:image" content="https://food-hunt.app/og-image.png" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Food-Hunt",
+    "alternateName": "FoodHunt",
+    "url": "https://food-hunt.app",
+    "description": "Campus food discovery and meal-splitting platform for LPU students.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://food-hunt.app/vendors?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Food-Hunt",
+    "url": "https://food-hunt.app",
+    "logo": "https://food-hunt.app/logo.png",
+    "sameAs": [
+      "https://github.com/justkalesh",
+      "https://www.linkedin.com/in/justkalesh/",
+      "https://www.instagram.com/kalash.who/"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "foodhunt101lpu@gmail.com",
+      "contactType": "customer support"
+    }
+  }
+  </script>
+
+  <!-- Supabase Password Recovery detection - works with both BrowserRouter and HashRouter -->
   <script>
     (function () {
       var hash = window.location.hash;
-      if (hash && hash.indexOf('type=recovery') !== -1) {
+      var search = window.location.search;
+      if ((hash && hash.indexOf('type=recovery') !== -1) ||
+          (search && search.indexOf('type=recovery') !== -1)) {
         sessionStorage.setItem('supabase_password_recovery', 'true');
       }
     })();
@@ -28,6 +84,7 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    try {
     tailwind.config = {
       darkMode: 'class',
       theme: {
@@ -105,6 +162,10 @@
           },
         }
       }
+    }
+    } catch(e) {
+      // Tailwind CDN failed to load (content blocker, slow network) — app still works
+      console.warn('Tailwind CDN not available:', e);
     }
   </script>
   <link
@@ -187,6 +248,36 @@
       }
       document.body.removeChild(textArea);
     }
+  </script>
+
+  <!-- Mobile Error Diagnostic (temporary — remove after fixing iPhone issue) -->
+  <script>
+    (function() {
+      // Show JS errors visually on mobile (no devtools available)
+      window.addEventListener('error', function(e) {
+        var d = document.getElementById('mobile-error-diag');
+        if (!d) {
+          d = document.createElement('div');
+          d.id = 'mobile-error-diag';
+          d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#ff6b6b;padding:16px;font-family:monospace;font-size:12px;z-index:99999;max-height:40vh;overflow:auto;border-top:3px solid #ff6b6b;';
+          document.body.appendChild(d);
+        }
+        d.innerHTML += '<div style="margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:8px;"><strong>ERROR:</strong> ' + e.message + '<br><small style="color:#888;">' + (e.filename || '') + ':' + (e.lineno || '') + '</small></div>';
+      });
+
+      // Loading timeout — if app doesn't render in 8s, show a message
+      var loadTimer = setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.innerHTML.trim() === '') {
+          root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:white;font-family:sans-serif;padding:24px;text-align:center;">' +
+            '<p style="font-size:18px;font-weight:600;margin-bottom:12px;">Loading Food-Hunt...</p>' +
+            '<p style="color:#94a3b8;font-size:14px;">If this message persists, try clearing Safari website data:<br><strong>Settings → Safari → Clear History and Website Data</strong></p>' +
+            '<button onclick="location.reload()" style="margin-top:20px;background:#f97316;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer;">Reload</button>' +
+            '</div>';
+        }
+      }, 8000);
+      window.__clearLoadTimer = function() { clearTimeout(loadTimer); };
+    })();
   </script>
 
   <div id="root"></div>

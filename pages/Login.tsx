@@ -3,8 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const Login: React.FC = () => {
+  usePageMeta({
+    title: 'Sign In — Food-Hunt',
+    description: 'Sign in to your Food-Hunt account to discover campus food vendors, join meal splits, and connect with fellow students.',
+    canonicalPath: '/login',
+  });
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');

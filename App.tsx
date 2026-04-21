@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -32,6 +32,7 @@ import OurTeam from './pages/OurTeam';
 import Careers from './pages/Careers';
 import HelpCenter from './pages/HelpCenter';
 import ResetPassword from './pages/ResetPassword';
+import FAQ from './pages/FAQ';
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -101,6 +102,7 @@ const AppContent: React.FC = () => {
               <Route path="/team" element={<PageTransition><OurTeam /></PageTransition>} />
               <Route path="/careers" element={<PageTransition><Careers /></PageTransition>} />
               <Route path="/help" element={<PageTransition><HelpCenter /></PageTransition>} />
+              <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

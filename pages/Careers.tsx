@@ -1,8 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Briefcase } from 'lucide-react';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const Careers: React.FC = () => {
+    usePageMeta({
+        title: 'Careers — Food-Hunt',
+        description: 'Explore career opportunities at Food-Hunt. Join our team and help us build the best campus food discovery platform.',
+        canonicalPath: '/careers',
+    });
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <div className="max-w-4xl mx-auto px-4 py-16">

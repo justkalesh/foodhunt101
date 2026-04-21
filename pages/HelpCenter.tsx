@@ -1,8 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft, HelpCircle } from 'lucide-react';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const HelpCenter: React.FC = () => {
+    usePageMeta({
+        title: 'Help Center — Food-Hunt',
+        description: 'Get help with Food-Hunt. Find FAQs, guides, and contact our support team.',
+        canonicalPath: '/help',
+    });
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <div className="max-w-4xl mx-auto px-4 py-16">

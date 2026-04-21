@@ -9,6 +9,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../services/supabase';
 import { PageLoading } from '../components/ui/LoadingSpinner';
 import { VerifiedBadge } from '../components/AadhaarVerification';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 // ==========================================
 // SQL REQUIREMENTS FOR REALTIME CHAT
@@ -36,6 +37,12 @@ import { VerifiedBadge } from '../components/AadhaarVerification';
 // ==========================================
 
 const Inbox: React.FC = () => {
+    usePageMeta({
+        title: 'Inbox — Food-Hunt',
+        description: 'Chat with fellow students about meal splits and food discoveries.',
+        canonicalPath: '/inbox',
+        noIndex: true,
+    });
     const { user, isEmailVerified } = useAuth();
     const { permissionStatus, requestPermission } = usePushNotifications();
     const navigate = useNavigate();
@@ -398,11 +405,13 @@ const Inbox: React.FC = () => {
                     </Link>
                 );
             } else if (match[4]) {
-                // Split mention
+                // Split mention — link with search param for the split code
+                const splitId = match[6] || '';
+                const splitCode = splitId.slice(-6).toUpperCase();
                 parts.push(
                     <Link
                         key={`s-${match.index}`}
-                        to="/splits"
+                        to={`/splits?search=${splitCode}`}
                         className={`font-bold hover:underline ${isMe ? 'text-yellow-200' : 'text-secondary-600'}`}
                     >
                         🍽️ #{match[5]}

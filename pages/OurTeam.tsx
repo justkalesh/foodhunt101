@@ -1,8 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Construction, Users } from 'lucide-react';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 const OurTeam: React.FC = () => {
+    usePageMeta({
+        title: 'Our Team — Food-Hunt',
+        description: 'Meet the passionate foodies behind Food-Hunt who are dedicated to making campus dining better at LPU.',
+        canonicalPath: '/team',
+    });
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <div className="max-w-4xl mx-auto px-4 py-16">
