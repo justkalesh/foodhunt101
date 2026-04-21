@@ -68,7 +68,7 @@ const MegaFooter: React.FC = () => {
                                 <Linkedin size={20} className="text-gray-600 dark:text-gray-300" />
                             </a>
                             <a
-                                href="https://www.instagram.com/kalash.who/"
+                                href="https://www.instagram.com/foodhunt.app/"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-2 rounded-full bg-gray-200 dark:bg-slate-800 hover:bg-primary-600 hover:text-white transition-colors duration-200"
