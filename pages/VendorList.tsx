@@ -165,15 +165,15 @@ const VendorList: React.FC = () => {
           <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-accent-sky/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 pt-8 sm:pt-12 pb-6 sm:pb-8 relative z-10">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-medium mb-4">
             <Sparkles size={14} />
             Discover Campus Eats
           </span>
-          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
             Campus <span className="text-primary-600">Food Spots</span>
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-xl">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-xl">
             Explore every food vendor on campus. Filter by cuisine, price, and location.
           </p>
         </div>
@@ -229,7 +229,7 @@ const VendorList: React.FC = () => {
         </div>
 
         {/* Vendor Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((vendor, idx) => (
             <Link
               to={`/vendors/${vendor.id}`}
@@ -237,12 +237,12 @@ const VendorList: React.FC = () => {
               className="stagger-item group"
               style={{ animationDelay: `${idx * 0.05}s` }}
             >
-              <Card variant="default" className="h-full overflow-hidden">
+              <Card variant="default" className="h-full overflow-hidden !p-4 sm:!p-6">
                 {/* Gradient blob decoration */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-primary-500/10 transition-all" />
 
                 {/* Image Section */}
-                <div className="h-44 -mx-6 -mt-6 mb-4 overflow-hidden relative">
+                <div className="h-40 sm:h-44 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 mb-3 sm:mb-4 overflow-hidden relative">
                   <img
                     src={vendor.logo_url || vendor.menu_image_urls?.[0]}
                     alt={vendor.name}
@@ -280,7 +280,7 @@ const VendorList: React.FC = () => {
                   {/* Header Row */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate flex items-center gap-2">
                         {vendor.name}
                         {(() => { const tc = getEffectiveTrafficConfig(vendor); return <span className={`inline-block w-2 h-2 rounded-full ${tc.dotClass} flex-shrink-0`} title={`Traffic: ${tc.label}`} />; })()}
                       </h3>
@@ -311,32 +311,32 @@ const VendorList: React.FC = () => {
                   </div>
 
                   {/* Price & Tags */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-medium">
                         From
                       </span>
-                      <span className="text-xl font-extrabold text-gray-900 dark:text-white">
+                      <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white">
                         ₹{vendor.lowest_item_price}
                       </span>
                     </div>
-                    <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                    <span className="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold">
                       {vendor.origin_tag}
                     </span>
                   </div>
 
                   {/* Description */}
-                  <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm line-clamp-2 mb-3 sm:mb-4">
                     {vendor.description}
                   </p>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 dark:border-gray-700">
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       Avg: <span className="font-semibold text-gray-700 dark:text-gray-200">₹{vendor.avg_price_per_meal}</span>
                     </span>
                     {vendor.contact_number && (
-                      <div className="flex items-center gap-1 text-gray-400 text-xs">
+                      <div className="hidden sm:flex items-center gap-1 text-gray-400 text-xs">
                         <Phone size={12} />
                         <span>{vendor.contact_number}</span>
                       </div>
