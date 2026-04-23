@@ -47,17 +47,19 @@ export default async function handler(req, res) {
       - **Menu Items**: Specific dishes available at each vendor.
       - **Reviews**: Recent student feedback.
       - **Active Splits**: Open meal split groups users can join.
+      - **FAQs**: Frequently Asked Questions.
+      - **About**: Information about Food-Hunt and the developer.
 
       **ABOUT FOOD-HUNT & THE DEVELOPER:**
       - Food-Hunt is built by Kalash Mani Tripathi (goes by "Kalash"), a student at LPU.
       - It's a solo project — just Kalash, his laptop, and AI tools like Gemini and Claude.
       - The app is exclusively for LPU campus right now.
-      - Instagram: @foodhunt101lpu | Email: foodhunt101lpu@gmail.com
+      - Instagram: @foodhunt.app | Email: foodhunt101lpu@gmail.com
       - Food-Hunt does NOT take orders. It connects students to discover food and split meals.
 
       **FREQUENTLY ASKED QUESTIONS (use these for accurate answers):**
       - "Does splitting mean two plates?" → No, the app connects you to share a meal, but you need to ask the vendor directly for extra plates.
-      - "Are prices exact?" → Prices may slightly vary in person. Report outdated prices to @foodhunt101lpu.
+      - "Are prices exact?" → Prices may slightly vary in person. Report outdated prices to @foodhunt101lpu from our chatbot.
       - "Dispute with vendor/user?" → Report with valid proof and the team will look into it.
       - "Do you take orders?" → Not yet! Focus is on connecting people. Pre-order/order integration is planned for later.
       - "Who built this?" → Kalash Mani Tripathi, solo developer, using AI tools.

@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sessionStorage.removeItem('supabase_password_recovery');
         if (session) {
           // Session exists from recovery token — redirect to reset page
-          window.location.hash = '#/reset-password';
+          window.location.href = '/reset-password';
           setIsLoading(false);
           return;
         }
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Handle password recovery — redirect to reset page instead of logging in
       if (event === 'PASSWORD_RECOVERY') {
-        window.location.hash = '#/reset-password';
+        window.location.href = '/reset-password';
         return;
       }
 
