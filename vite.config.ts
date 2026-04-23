@@ -8,8 +8,10 @@ export default defineConfig(({ mode }) => {
   // Ensure process.env is populated for the imported handler
   Object.assign(process.env, env);
 
+  const isCapacitor = process.env.CAPACITOR_BUILD === 'true';
+
   return {
-    base: '',  // Required for Capacitor - loads assets from local file system
+    base: isCapacitor ? '' : '/',  // Absolute paths for web (fixes MIME errors on nested routes), relative for Capacitor
     server: {
       port: 3000,
       host: '0.0.0.0',
