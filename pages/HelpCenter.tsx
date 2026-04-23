@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Sparkles, HelpCircle } from 'lucide-react';
 import { usePageMeta } from '../hooks/usePageMeta';
 
 const HelpCenter: React.FC = () => {

@@ -250,35 +250,6 @@
     }
   </script>
 
-  <!-- Mobile Error Diagnostic (temporary — remove after fixing iPhone issue) -->
-  <script>
-    (function() {
-      // Show JS errors visually on mobile (no devtools available)
-      window.addEventListener('error', function(e) {
-        var d = document.getElementById('mobile-error-diag');
-        if (!d) {
-          d = document.createElement('div');
-          d.id = 'mobile-error-diag';
-          d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#ff6b6b;padding:16px;font-family:monospace;font-size:12px;z-index:99999;max-height:40vh;overflow:auto;border-top:3px solid #ff6b6b;';
-          document.body.appendChild(d);
-        }
-        d.innerHTML += '<div style="margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:8px;"><strong>ERROR:</strong> ' + e.message + '<br><small style="color:#888;">' + (e.filename || '') + ':' + (e.lineno || '') + '</small></div>';
-      });
-
-      // Loading timeout — if app doesn't render in 8s, show a message
-      var loadTimer = setTimeout(function() {
-        var root = document.getElementById('root');
-        if (root && root.innerHTML.trim() === '') {
-          root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:white;font-family:sans-serif;padding:24px;text-align:center;">' +
-            '<p style="font-size:18px;font-weight:600;margin-bottom:12px;">Loading Food-Hunt...</p>' +
-            '<p style="color:#94a3b8;font-size:14px;">If this message persists, try clearing Safari website data:<br><strong>Settings → Safari → Clear History and Website Data</strong></p>' +
-            '<button onclick="location.reload()" style="margin-top:20px;background:#f97316;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer;">Reload</button>' +
-            '</div>';
-        }
-      }, 8000);
-      window.__clearLoadTimer = function() { clearTimeout(loadTimer); };
-    })();
-  </script>
 
   <div id="root"></div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Briefcase } from 'lucide-react';
+import { Sparkles, Briefcase } from 'lucide-react';
 import { usePageMeta } from '../hooks/usePageMeta';
 
 const Careers: React.FC = () => {

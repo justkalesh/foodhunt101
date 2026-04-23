@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Construction, Users } from 'lucide-react';
+import { Sparkles, Users } from 'lucide-react';
 import { usePageMeta } from '../hooks/usePageMeta';
 
 const OurTeam: React.FC = () => {
