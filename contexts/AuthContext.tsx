@@ -109,14 +109,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const res = await api.users.getMe(userId);
-    if (res.success && res.data) {
-      setUser(res.data);
-      setNeedsCompletion(false);
-    } else {
-      // User is authenticated but has no profile -> Needs completion
-      setNeedsCompletion(true);
+    try {
+      const res = await api.users.getMe(userId);
+      if (res.success && res.data) {
+        setUser(res.data);
+        setNeedsCompletion(false);
+      } else if (res.message === 'User not found.') {
+        // Genuinely no profile row — user needs to complete registration
+        setNeedsCompletion(true);
+        setUser(null);
+      } else {
+        // Network error or other transient failure — do NOT redirect to complete-profile.
+        // Keep user as null but don't flag needsCompletion so they stay on the current page.
+        setUser(null);
+        setNeedsCompletion(false);
+      }
+    } catch {
+      // Total crash (e.g. offline) — same: don't redirect
       setUser(null);
+      setNeedsCompletion(false);
     }
     setIsLoading(false);
   };
