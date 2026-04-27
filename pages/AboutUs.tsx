@@ -145,11 +145,11 @@ const AboutUs: React.FC = () => {
                                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
                                         Kalash Mani Tripathi
                                     </h3>
-                                    <p className="text-primary-600 dark:text-primary-400 font-medium">
-                                        Full Stack Developer
+                                    <p className="text-primary-600 dark:text-primary-400 font-bold text-lg">
+                                        Founder - Building It Live
                                     </p>
                                     <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                                        Computer Science Undergraduate
+                                        Full Stack Developer & Computer Science Undergraduate
                                     </p>
                                 </div>
                             </div>
