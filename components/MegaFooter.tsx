@@ -205,9 +205,14 @@ const MegaFooter: React.FC = () => {
                     </p>
                     <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-slate-800/50 w-full max-w-sm mx-auto">
                         <span className="text-gray-400 dark:text-gray-500 text-sm">A project by</span>
-                        <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-orange-500 dark:from-primary-400 dark:to-orange-400">
+                        <a 
+                            href="https://buildingitlive.com" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-orange-500 dark:from-primary-400 dark:to-orange-400 hover:opacity-80 transition-opacity"
+                        >
                             Building It Live
-                        </span>
+                        </a>
                     </div>
                 </div>
             </div>
