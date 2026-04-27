@@ -10,6 +10,7 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useVendorRealtime } from '../hooks/useVendorRealtime';
 import { getEffectiveTrafficConfig } from '../utils/vendorStatus';
 import { usePageMeta } from '../hooks/usePageMeta';
+import { useVendor, useVendorReviews, useMenuItems as useMenuItemsQuery } from '../hooks/useVendors';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -147,16 +148,30 @@ const VendorDetail: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    // TanStack Query: cached vendor, reviews, and menu items
+    const { data: queriedVendor, isLoading: vendorLoading } = useVendor(id);
+    const { data: queriedReviews, isLoading: reviewsLoading } = useVendorReviews(id);
+    const { data: queriedMenuItems } = useMenuItemsQuery(id);
+
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
-    const [loading, setLoading] = useState(true);
+    const loading = vendorLoading || reviewsLoading;
     const [newRating, setNewRating] = useState(5);
     const [newReviewText, setNewReviewText] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showListModal, setShowListModal] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [menuItems, setMenuItems] = useState<MenuItem[] | null>(null);
+    const menuItems = queriedMenuItems ?? null;
+
+    // Sync query data into local state (for optimistic UI updates)
+    useEffect(() => {
+        if (queriedVendor) setVendor(queriedVendor);
+    }, [queriedVendor]);
+
+    useEffect(() => {
+        if (queriedReviews) setReviews(queriedReviews);
+    }, [queriedReviews]);
 
     // Scroll state for floating action bar
     const [scrollY, setScrollY] = useState(0);
@@ -193,27 +208,6 @@ const VendorDetail: React.FC = () => {
     useEffect(() => {
         if (showMenuModal) setCurrentImageIndex(0);
     }, [showMenuModal]);
-
-    useEffect(() => {
-        if (showListModal && id && menuItems === null) {
-            api.vendors.getMenuItems(id).then(res => {
-                if (res.success && res.data) setMenuItems(res.data);
-                else setMenuItems([]);
-            });
-        }
-    }, [showListModal, id, menuItems]);
-
-    useEffect(() => {
-        if (!id) return;
-        const fetchData = async () => {
-            const vRes = await api.vendors.getById(id);
-            if (vRes.success && vRes.data) setVendor(vRes.data);
-            const rRes = await api.vendors.getReviews(id);
-            if (rRes.success && rRes.data) setReviews(rRes.data);
-            setLoading(false);
-        };
-        fetchData();
-    }, [id]);
 
     // Real-time vendor status updates
     const handleRealtimeUpdate = useCallback((updated: Partial<Vendor> & { id: string }) => {

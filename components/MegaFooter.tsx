@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Github, Linkedin, Instagram, MapPin } from 'lucide-react';
 import { api } from '../services/mockDatabase';
+import { useVendors } from '../hooks/useVendors';
 
 const HARDCODED_LOCATIONS = [
     { name: 'LPU Campus', label: 'Lovely Professional University' },
@@ -11,20 +12,12 @@ const HARDCODED_LOCATIONS = [
 
 const MegaFooter: React.FC = () => {
     const navigate = useNavigate();
-    const [foodCourts, setFoodCourts] = useState<string[]>([]);
 
-    useEffect(() => {
-        const fetchLocations = async () => {
-            const res = await api.vendors.getAll();
-            if (res.success && res.data) {
-                const uniqueLocations = Array.from(
-                    new Set(res.data.map(v => v.location).filter(Boolean))
-                );
-                setFoodCourts(uniqueLocations);
-            }
-        };
-        fetchLocations();
-    }, []);
+    // TanStack Query: cached vendor data (shared with VendorList, Chatbot, etc.)
+    const { data: queriedVendors } = useVendors();
+    const foodCourts = queriedVendors
+        ? Array.from(new Set(queriedVendors.map(v => v.location).filter(Boolean)))
+        : [];
 
     const handleHelpCenter = async () => {
         // Search for admin account by UID and navigate to inbox

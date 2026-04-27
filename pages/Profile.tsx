@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button';
 import ImageUpload from '../components/ui/ImageUpload';
 import AadhaarVerification, { VerifiedBadge } from '../components/AadhaarVerification';
 import { usePageMeta } from '../hooks/usePageMeta';
+import { useProfile as useProfileQuery, useActivity } from '../hooks/useProfile';
 
 const Profile: React.FC = () => {
    usePageMeta({
@@ -26,6 +27,7 @@ const Profile: React.FC = () => {
    const navigate = useNavigate();
 
    const isOwnProfile = !userId || (user && user.id === userId);
+   const targetUserId = isOwnProfile ? user?.id : userId;
    const [displayUser, setDisplayUser] = useState<User | null>(null);
 
    const [loading, setLoading] = useState(true);
@@ -36,69 +38,72 @@ const Profile: React.FC = () => {
    const [saving, setSaving] = useState(false);
    const [showVerifyModal, setShowVerifyModal] = useState(false);
 
+   // TanStack Query: cached profile and activity data
+   const { data: queriedProfile, isLoading: profileLoading } = useProfileQuery(targetUserId);
+   const { data: queriedActivity, isLoading: activityLoading } = useActivity(targetUserId);
+
    useEffect(() => {
       if (isOwnProfile && !user) {
          navigate('/login');
          return;
       }
+   }, [isOwnProfile, user, navigate]);
 
-      const loadProfile = async () => {
-         let targetUser = user;
+   // Sync profile data from query cache or auth context
+   useEffect(() => {
+      const targetUser = isOwnProfile ? user : queriedProfile;
+      if (!targetUser) return;
 
-         if (!isOwnProfile && userId) {
-            const res = await api.users.getMe(userId);
-            if (res.success && res.data) {
-               targetUser = res.data;
-            } else {
-               setLoading(false);
-               return;
-            }
-         }
+      setDisplayUser(targetUser);
+      setFormData({
+         name: targetUser.name,
+         semester: targetUser.semester,
+         pfp_url: targetUser.pfp_url || ''
+      });
+   }, [isOwnProfile, user, queriedProfile]);
 
-         if (targetUser) {
-            setDisplayUser(targetUser);
-            setFormData({
-               name: targetUser.name,
-               semester: targetUser.semester,
-               pfp_url: targetUser.pfp_url || ''
-            });
+   // Sync activity data from query cache
+   useEffect(() => {
+      if (queriedActivity) {
+         setActivity(queriedActivity as any);
+      }
+   }, [queriedActivity]);
 
-            const actRes = await api.users.getActivity(targetUser.id);
-            if (actRes.success && actRes.data) {
-               setActivity(actRes.data as any);
-            }
+   // Handle active split resolution
+   useEffect(() => {
+      const resolveActiveSplit = async () => {
+         const targetUser = isOwnProfile ? user : queriedProfile;
+         if (!targetUser) return;
 
-            if (targetUser.active_split_id) {
-               const splitRes = await api.splits.getById(targetUser.active_split_id);
-               if (splitRes.success && splitRes.data) {
-                  const split = splitRes.data;
-                  const isExpired = split.split_time && new Date(split.split_time) < new Date();
-                  if (split.is_closed || isExpired) {
-                     setActiveSplit(null);
-                     if (isOwnProfile) {
-                        await api.users.updateProfile(targetUser.id, { active_split_id: null } as any);
-                        updateUser({ ...targetUser, active_split_id: null });
-                     }
-                  } else {
-                     setActiveSplit(split);
-                  }
-               } else {
+         if (targetUser.active_split_id) {
+            const splitRes = await api.splits.getById(targetUser.active_split_id);
+            if (splitRes.success && splitRes.data) {
+               const split = splitRes.data;
+               const isExpired = split.split_time && new Date(split.split_time) < new Date();
+               if (split.is_closed || isExpired) {
                   setActiveSplit(null);
                   if (isOwnProfile) {
                      await api.users.updateProfile(targetUser.id, { active_split_id: null } as any);
                      updateUser({ ...targetUser, active_split_id: null });
                   }
+               } else {
+                  setActiveSplit(split);
                }
             } else {
                setActiveSplit(null);
+               if (isOwnProfile) {
+                  await api.users.updateProfile(targetUser.id, { active_split_id: null } as any);
+                  updateUser({ ...targetUser, active_split_id: null });
+               }
             }
+         } else {
+            setActiveSplit(null);
          }
-
          setLoading(false);
       };
 
-      loadProfile();
-   }, [user, navigate, userId, isOwnProfile]);
+      resolveActiveSplit();
+   }, [queriedProfile, user, isOwnProfile]);
 
    const [imgError, setImgError] = useState(false);
 

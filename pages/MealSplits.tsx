@@ -17,6 +17,8 @@ import { supabase } from '../services/supabase';
 import { useLocation as useLocationCtx } from '../contexts/LocationContext';
 import { buildLocationMap, haversineDistance, formatDistance } from '../utils/location';
 import { usePageMeta } from '../hooks/usePageMeta';
+import { useVendors } from '../hooks/useVendors';
+import { useQueryClient } from '@tanstack/react-query';
 
 // ============================================
 // PROGRESS RING COMPONENT
@@ -595,6 +597,10 @@ const MealSplits: React.FC = () => {
   const { user, updateUser, isEmailVerified } = useAuth();
   const { permissionStatus, requestPermission } = usePushNotifications();
   const navigate = useNavigate();
+  // TanStack Query: cached vendor data
+  const { data: queriedVendors } = useVendors();
+  const queryClient = useQueryClient();
+
   const [splits, setSplits] = useState<MealSplit[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [myRequests, setMyRequests] = useState<string[]>([]);
@@ -623,15 +629,17 @@ const MealSplits: React.FC = () => {
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Sync vendors from query cache
+  useEffect(() => {
+    if (queriedVendors) setVendors(queriedVendors);
+  }, [queriedVendors]);
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const [splitsRes, vendorsRes] = await Promise.all([
-      api.splits.getAll(user?.id),
-      api.vendors.getAll()
-    ]);
+    const splitsRes = await api.splits.getAll(user?.id);
 
     if (splitsRes.success && splitsRes.data) {
       const now = new Date();
@@ -645,9 +653,6 @@ const MealSplits: React.FC = () => {
         }
       }
       setSplits(validSplits);
-    }
-    if (vendorsRes.success && vendorsRes.data) {
-      setVendors(vendorsRes.data);
     }
 
     if (user) {

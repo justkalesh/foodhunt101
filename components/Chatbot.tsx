@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Vendor } from '../types';
 import { useLocation as useLocationCtx } from '../contexts/LocationContext';
 import { buildLocationMap, calculateVendorDistances, formatDistance } from '../utils/location';
+import { useVendors } from '../hooks/useVendors';
 
 const Chatbot: React.FC = () => {
     const location = useLocation();
@@ -15,8 +16,11 @@ const Chatbot: React.FC = () => {
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [vendors, setVendors] = useState<Vendor[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // TanStack Query: cached vendor data (shared with VendorList, MealSplits, etc.)
+    const { data: queriedVendors } = useVendors();
+    const vendors = queriedVendors ?? [];
 
     // Location context for nearby vendor recommendations
     const { userCoords, selectedLabel, campusLocations } = useLocationCtx();
@@ -42,17 +46,6 @@ const Chatbot: React.FC = () => {
         observer.observe(document.body, { attributes: true, attributeFilter: ['data-floating-bar'] });
 
         return () => observer.disconnect();
-    }, []);
-
-    // Fetch vendors on mount for linking logic
-    useEffect(() => {
-        const fetchVendors = async () => {
-            const res = await api.vendors.getAll();
-            if (res.success && res.data) {
-                setVendors(res.data);
-            }
-        };
-        fetchVendors();
     }, []);
 
     useEffect(() => {

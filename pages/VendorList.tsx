@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api } from '../services/mockDatabase';
 import { Vendor } from '../types';
 import { Search, MapPin, Star, Flame, Phone, Filter, X, Sparkles, Navigation } from 'lucide-react';
 import { PageLoading } from '../components/ui/LoadingSpinner';
@@ -13,6 +12,7 @@ import { useLocation } from '../contexts/LocationContext';
 import { buildLocationMap, calculateVendorDistances, formatDistance } from '../utils/location';
 import LocationSelector from '../components/LocationSelector';
 import { usePageMeta } from '../hooks/usePageMeta';
+import { useVendors } from '../hooks/useVendors';
 
 const VendorList: React.FC = () => {
   usePageMeta({
@@ -21,10 +21,21 @@ const VendorList: React.FC = () => {
     canonicalPath: '/vendors',
   });
   const [searchParams, setSearchParams] = useSearchParams();
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [filtered, setFiltered] = useState<Vendor[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+
+  // TanStack Query: cached vendor data
+  const { data: allVendors, isLoading: loading } = useVendors();
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+
+  // Sync query data into local state (for realtime updates to merge into)
+  useEffect(() => {
+    if (allVendors) {
+      const activeVendors = allVendors.filter(v => v.is_active !== false);
+      setVendors(activeVendors);
+      setFiltered(activeVendors);
+    }
+  }, [allVendors]);
 
   // Filter & Sort States
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -61,19 +72,6 @@ const VendorList: React.FC = () => {
     // Clear URL params
     setSearchParams({});
   };
-
-  useEffect(() => {
-    const fetch = async () => {
-      const res = await api.vendors.getAll();
-      if (res.success && res.data) {
-        const activeVendors = res.data.filter(v => v.is_active !== false);
-        setVendors(activeVendors);
-        setFiltered(activeVendors);
-      }
-      setLoading(false);
-    };
-    fetch();
-  }, []);
 
   // Real-time vendor status updates
   const handleRealtimeUpdate = useCallback((updated: Partial<Vendor> & { id: string }) => {

@@ -37,6 +37,8 @@ import FAQ from './pages/FAQ';
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
 
+import OfflineBanner from './components/OfflineBanner';
+
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { needsCompletion, isLoading } = useAuth();
@@ -73,6 +75,7 @@ const AppContent: React.FC = () => {
       />
 
       <div className="relative z-10">
+        <OfflineBanner />
         <Navbar />
         <AnimatePresence mode="wait">
           <div key={location.pathname}>

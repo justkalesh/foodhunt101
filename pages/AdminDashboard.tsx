@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PageLoading } from "../components/ui/LoadingSpinner";
 import ConfirmationModal from "../components/ui/ConfirmationModal";
+import { useAdminStats } from "../hooks/useAdmin";
 
 // Import the sub-components (Assuming you can refactor AdminVendors/AdminUsers to be exported components,
 // or we lazily render them here. For now, I will build the TAB SHELL).
@@ -24,12 +25,15 @@ import AdminUsers from "./AdminUsers";
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalVendors: 0,
-    totalReviews: 0,
-  });
-  const [loading, setLoading] = useState(true);
+
+  // TanStack Query: cached admin stats
+  const { data: statsData, isLoading: statsLoading } = useAdminStats();
+  const stats = {
+    totalUsers: statsData?.users || 0,
+    totalVendors: statsData?.vendors || 0,
+    totalReviews: statsData?.reviews || 0,
+  };
+
   const [activeTab, setActiveTab] = useState<"overview" | "vendors" | "users">(
     "overview",
   );
@@ -40,22 +44,10 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (!user || user.role !== UserRole.ADMIN) {
       navigate("/login");
-      return;
     }
-    const fetchStats = async () => {
-      const res = await api.admin.getStats();
-      if (res.success && res.data) {
-        // Map API response to component's expected property names
-        setStats({
-          totalUsers: res.data.users || 0,
-          totalVendors: res.data.vendors || 0,
-          totalReviews: res.data.reviews || 0,
-        });
-      }
-      setLoading(false);
-    };
-    fetchStats();
   }, [user, navigate]);
+
+  const loading = statsLoading || !user || user.role !== UserRole.ADMIN;
 
   const handleSyncRatings = async () => {
     setActionLoading(true);
