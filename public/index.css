@@ -18,6 +18,14 @@ html {
   transition-timing-function: ease-out;
 }
 
+/* Exclude preloader from theme transitions — prevents blue flash on initial load */
+#app-preloader,
+#app-preloader *,
+#app-preloader *::before,
+#app-preloader *::after {
+  transition: none !important;
+}
+
 /* ============================================
    KEYFRAME ANIMATIONS
    ============================================ */

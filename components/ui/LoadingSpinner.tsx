@@ -21,9 +21,13 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     return (
         <div className="flex flex-col justify-center items-center gap-4">
             <div className="relative">
-                {/* Spinning ring - fixed for dark mode */}
+                {/* Spinning orange ring - matches preloader */}
                 <div
-                    className={`${container} ${border} border-primary-200 dark:border-primary-800 rounded-full animate-spin border-t-primary-600 dark:border-t-primary-500`}
+                    className={`${container} rounded-full animate-spin`}
+                    style={{
+                        border: `${size === 'sm' ? '2px' : '4px'} solid rgba(234, 88, 12, 0.2)`,
+                        borderTopColor: '#ea580c',
+                    }}
                 />
                 {/* Center icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -39,9 +43,9 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     );
 };
 
-// Full page loading wrapper
+// Full page loading wrapper — accounts for navbar height (~5rem) so spinner is truly centered
 export const PageLoading: React.FC<{ message?: string }> = ({ message }) => (
-    <div className="flex justify-center items-center min-h-[60vh]">
+    <div className="flex justify-center items-center min-h-[calc(100vh-5rem)]">
         <LoadingSpinner size="lg" message={message} />
     </div>
 );

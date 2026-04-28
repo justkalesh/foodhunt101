@@ -204,7 +204,7 @@ const MegaFooter: React.FC = () => {
                         Discover the best food near LPU, Phagwara & Jalandhar — campus food vendors, meal splits & more.
                     </p>
                     <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-200/50 dark:border-slate-800/50 w-full max-w-sm mx-auto">
-                        <span className="text-gray-400 dark:text-gray-500 text-sm">A project by</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-sm">Made By</span>
                         <a 
                             href="https://buildingitlive.com" 
                             target="_blank" 

@@ -251,24 +251,31 @@
   </script>
 
 
-  <div id="root">
-    <!-- Initial loading screen (replaced by React on mount) -->
+  <!-- Preloader (lives OUTSIDE #root so React doesn't destroy it on mount) -->
+  <div id="app-preloader">
     <style>
-      .fh-preloader {
+      #app-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
         background: #0f172a;
         gap: 20px;
+        transition: opacity 0.3s ease;
+      }
+      #app-preloader.hidden {
+        opacity: 0;
+        pointer-events: none;
       }
       .fh-preloader-ring {
         position: relative;
         width: 80px;
         height: 80px;
       }
-      .fh-preloader-ring .ring {
+      .fh-preloader-ring .spinner-ring {
         width: 80px;
         height: 80px;
         border: 4px solid rgba(234, 88, 12, 0.2);
@@ -303,18 +310,18 @@
         50% { opacity: 0.4; }
       }
     </style>
-    <div class="fh-preloader">
-      <div class="fh-preloader-ring">
-        <div class="ring"></div>
-        <div class="icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
-          </svg>
-        </div>
+    <div class="fh-preloader-ring">
+      <div class="spinner-ring"></div>
+      <div class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+        </svg>
       </div>
-      <p class="fh-preloader-text">Discovering campus food spots...</p>
     </div>
+    <p class="fh-preloader-text">Discovering campus food spots...</p>
   </div>
+
+  <div id="root"></div>
 
   <script>
     // Handle Instagram/Facebook in-app browser fallback

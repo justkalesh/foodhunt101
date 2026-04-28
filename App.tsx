@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -46,12 +46,21 @@ const AppContent: React.FC = () => {
   const showChatbot = location.pathname !== '/inbox' && location.pathname !== '/complete-profile';
   const showFooter = location.pathname === '/';
 
+  // Hide the HTML preloader once auth resolves
+  useEffect(() => {
+    if (!isLoading) {
+      const preloader = document.getElementById('app-preloader');
+      if (preloader) {
+        // Fade out, then remove from DOM
+        preloader.classList.add('hidden');
+        setTimeout(() => preloader.remove(), 300);
+      }
+    }
+  }, [isLoading]);
+
+  // While auth is loading, return nothing — the HTML preloader covers the screen
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return null;
   }
 
   if (needsCompletion && location.pathname !== '/complete-profile') {
