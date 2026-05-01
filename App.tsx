@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import MegaFooter from './components/MegaFooter';
 import Chatbot from './components/Chatbot';
 import PageTransition from './components/PageTransition';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -136,6 +137,7 @@ const App: React.FC = () => {
       <AuthProvider>
         <Router>
           <LocationProvider>
+            <ScrollToTop />
             <AppContent />
           </LocationProvider>
         </Router>
