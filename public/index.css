@@ -467,3 +467,25 @@ html {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
+
+/* ============================================
+   TECH STACK MARQUEE
+   ============================================ */
+
+.marquee-forward {
+  animation: marquee-scroll 30s linear infinite;
+}
+
+.marquee-reverse {
+  animation: marquee-scroll 30s linear infinite reverse;
+}
+
+.marquee-container:has(.tech-pill:hover) .marquee-forward,
+.marquee-container:has(.tech-pill:hover) .marquee-reverse {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}

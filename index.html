@@ -251,6 +251,16 @@
   </script>
 
 
+  <!-- Theme initialization — runs SYNCHRONOUSLY before preloader renders
+       to prevent a dark/light flash mismatch on page load -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme') || 'system';
+      var isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) document.documentElement.classList.add('dark');
+    })();
+  </script>
+
   <!-- Preloader (lives OUTSIDE #root so React doesn't destroy it on mount) -->
   <div id="app-preloader">
     <style>
@@ -262,10 +272,14 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background: #0f172a;
+        background: #f8fafc;
         gap: 20px;
         transition: opacity 0.3s ease;
       }
+      @media (prefers-color-scheme: dark) {
+        #app-preloader { background: #0f172a; }
+      }
+      html.dark #app-preloader { background: #0f172a; }
       #app-preloader.hidden {
         opacity: 0;
         pointer-events: none;

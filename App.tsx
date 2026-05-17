@@ -34,6 +34,7 @@ import Careers from './pages/Careers';
 import HelpCenter from './pages/HelpCenter';
 import ResetPassword from './pages/ResetPassword';
 import FAQ from './pages/FAQ';
+import Features from './pages/Features';
 
 // Mock empty pages for routing completion
 import Inbox from './pages/Inbox';
@@ -116,6 +117,7 @@ const AppContent: React.FC = () => {
               <Route path="/careers" element={<PageTransition><Careers /></PageTransition>} />
               <Route path="/help" element={<PageTransition><HelpCenter /></PageTransition>} />
               <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
+              <Route path="/features" element={<PageTransition><Features /></PageTransition>} />
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

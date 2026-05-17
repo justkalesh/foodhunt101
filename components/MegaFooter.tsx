@@ -78,7 +78,7 @@ const MegaFooter: React.FC = () => {
                         <ul className="space-y-3">
                             <li>
                                 <Link
-                                    to="#features"
+                                    to="/features"
                                     className="text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors duration-200 text-sm"
                                 >
                                     Features
