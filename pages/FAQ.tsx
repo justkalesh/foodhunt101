@@ -143,12 +143,12 @@ const FAQ: React.FC = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         Reach out to us on Instagram{' '}
                         <a
-                            href="https://www.instagram.com/foodhunt101lpu/"
+                            href="https://www.instagram.com/foodhunt.app/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary-600 font-semibold hover:underline"
                         >
-                            @foodhunt101lpu
+                            @foodhunt.app
                         </a>
                     </p>
                 </div>
