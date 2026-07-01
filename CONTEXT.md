@@ -250,6 +250,10 @@ React.StrictMode
                                 └── ScrollToTop + AppContent
 ```
 
+### 8. PWA Install Prompt
+A custom hook (`useInstallPrompt.ts`) captures the browser's `beforeinstallprompt` event and detects iOS devices. The global `InstallAppPopup.tsx` component automatically shows an install prompt on page load unless the app is already installed or the user dismisses it (dismissal persists for the current session via `sessionStorage`).
+
+
 ---
 
 ## User Roles

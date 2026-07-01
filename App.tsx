@@ -25,6 +25,7 @@ import AdminVendors from './pages/AdminVendors';
 import AdminUsers from './pages/AdminUsers';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import CookieBanner from './components/CookieBanner';
+import InstallAppPopup from './components/InstallAppPopup';
 
 
 // WIP Pages
@@ -126,6 +127,7 @@ const AppContent: React.FC = () => {
         {showChatbot && <Chatbot />}
         {showFooter && <MegaFooter />}
         <CookieBanner />
+        <InstallAppPopup />
       </div>
     </div>
   );

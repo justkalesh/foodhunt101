@@ -366,6 +366,11 @@ All user inputs are sanitized via [sanitize.ts](file:///c:/Important/Code/Food-h
 - **Caching**: Google Fonts cached (CacheFirst, 1-year TTL), Firebase messaging scripts imported
 - **Preloader**: HTML-based preloader with fade-out transition when React hydrates
 
+### Install Prompt
+- **Trigger**: Auto-shows globally on page load (`App.tsx`) if not installed.
+- **Dismissal**: `sessionStorage` (shows once per session if dismissed).
+- **UI**: Centered glassmorphism modal on desktop, bottom sheet on mobile (`InstallAppPopup.tsx`). Includes a native install button for supported browsers, and fallback "Add to Home Screen" instructions for iOS Safari.
+
 ### Android (Capacitor)
 
 - **App ID**: `com.foodhunt.app`
