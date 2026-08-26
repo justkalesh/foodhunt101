@@ -25,6 +25,19 @@ const CompleteProfile: React.FC = () => {
                     ...prev,
                     name: user.user_metadata?.full_name || '',
                 }));
+
+                // Check if profile already exists (e.g., user already pressed Continue
+                // but component re-mounted due to AuthContext state changes)
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('id', user.id)
+                    .maybeSingle();
+
+                if (profile) {
+                    // Profile already exists — skip to verification
+                    setShowVerification(true);
+                }
             } else {
                 navigate('/login');
             }

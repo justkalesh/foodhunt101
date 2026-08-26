@@ -22,7 +22,9 @@ export async function onRequestPost(context) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }, {
+            baseUrl: "https://route429.parth-ie-kalash.workers.dev/p/food-hunt"
+        });
 
         const systemPrompt = `
       You are 'FoodieBot', the AI assistant for FOOD-HUNT, a campus food discovery app.

@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS public.vendors (
 -- REVIEWS TABLE
 CREATE TABLE IF NOT EXISTS public.reviews (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id uuid REFERENCES public.users(id),
-  vendor_id uuid REFERENCES public.vendors(id),
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
+  vendor_id uuid REFERENCES public.vendors(id) ON DELETE CASCADE,
   rating integer,
   review_text text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
@@ -88,9 +88,9 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
 -- MEAL SPLITS TABLE
 CREATE TABLE IF NOT EXISTS public.meal_splits (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  creator_id uuid REFERENCES public.users(id),
+  creator_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
   creator_name text,
-  vendor_id uuid REFERENCES public.vendors(id),
+  vendor_id uuid REFERENCES public.vendors(id) ON DELETE SET NULL,
   vendor_name text,
   dish_name text,
   total_price numeric,
@@ -115,8 +115,8 @@ CREATE TABLE IF NOT EXISTS public.conversations (
 CREATE TABLE IF NOT EXISTS public.messages (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   conversation_id text REFERENCES public.conversations(id) ON DELETE CASCADE,
-  sender_id uuid REFERENCES public.users(id),
-  receiver_id uuid REFERENCES public.users(id),
+  sender_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  receiver_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
   content text,
   is_read boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
@@ -126,14 +126,14 @@ CREATE TABLE IF NOT EXISTS public.messages (
 CREATE TABLE IF NOT EXISTS public.split_join_requests (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   split_id uuid REFERENCES public.meal_splits(id) ON DELETE CASCADE,
-  requester_id uuid REFERENCES public.users(id),
+  requester_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
   status text DEFAULT 'pending',
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   UNIQUE(split_id, requester_id)
 );
 
 -- Add request_id FK on messages (linking chat messages to join requests)
-ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS request_id uuid REFERENCES public.split_join_requests(id);
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS request_id uuid REFERENCES public.split_join_requests(id) ON DELETE SET NULL;
 
 -- SPLIT PARTICIPANTS TABLE (normalized join table)
 CREATE TABLE IF NOT EXISTS public.split_participants (
@@ -168,6 +168,31 @@ AS $$
     AND role = 'admin'
   );
 $$;
+
+-- Trigger function: prevent non-admins from modifying sensitive columns
+CREATE OR REPLACE FUNCTION public.protect_user_sensitive_columns()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- If the current user is NOT an admin, silently revert protected fields
+  IF NOT public.is_admin() THEN
+    NEW.role := OLD.role;
+    NEW.is_disabled := OLD.is_disabled;
+    NEW.loyalty_points := OLD.loyalty_points;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_user_sensitive_columns ON public.users;
+
+CREATE TRIGGER trg_protect_user_sensitive_columns
+  BEFORE UPDATE ON public.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_user_sensitive_columns();
 
 -- ============================================================
 -- PUBLIC PROFILES VIEW (Safe public data only)

@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Route429 handles API key injection — no SDK needed
+const ROUTE429_BASE = "https://route429.parth-ie-kalash.workers.dev/p/food-hunt";
 
 export default async function handler(req, res) {
     // CORS Helper
@@ -19,12 +20,6 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : "";
-
-    if (!apiKey) {
-        return res.status(500).json({ error: 'Server configuration error: GEMINI_API_KEY missing.' });
-    }
-
     const { userMessage, contextData } = req.body;
 
     if (!userMessage) {
@@ -32,8 +27,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const systemPrompt = `
       You are 'FoodieBot', the AI assistant for FOOD-HUNT, a campus food discovery app.
@@ -77,12 +70,25 @@ export default async function handler(req, res) {
       7. **About/FAQ queries**: Answer using the FAQ and About info above. Keep it natural, don't copy-paste.
     `;
 
-        const result = await model.generateContent([
-            systemPrompt,
-            "\n\nUser Question: " + userMessage
-        ]);
-        const response = await result.response;
-        const text = response.text();
+        const result = await fetch(
+            `${ROUTE429_BASE}/v1beta/models/gemini-3.6-flash:generateContent`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: systemPrompt + "\n\nUser Question: " + userMessage }] }]
+                })
+            }
+        );
+
+        if (!result.ok) {
+            const errBody = await result.text();
+            console.error("Route429 proxy error:", result.status, errBody);
+            throw new Error(`Proxy returned ${result.status}`);
+        }
+
+        const data = await result.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't think of an answer.";
 
         return res.status(200).json({ response: text });
 
