@@ -40,7 +40,7 @@ const ResetPassword: React.FC = () => {
         setError(error.message);
       } else {
         setSuccess(true);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/'), 3000);
       }
     } catch (err: any) {
       setError(err.message);
@@ -55,7 +55,7 @@ const ResetPassword: React.FC = () => {
         <div className="max-w-md w-full bg-white dark:bg-dark-800 p-8 rounded-2xl shadow-lg border dark:border-gray-700 text-center">
           <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Password Updated!</h2>
-          <p className="text-gray-500 dark:text-gray-400">Your password has been reset successfully. Redirecting to login...</p>
+          <p className="text-gray-500 dark:text-gray-400">Your password has been reset successfully. Redirecting to home...</p>
         </div>
       </div>
     );
