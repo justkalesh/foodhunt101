@@ -11,9 +11,22 @@ import { useVendors } from '../hooks/useVendors';
 const Chatbot: React.FC = () => {
     const location = useLocation();
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>([
-        { role: 'bot', text: 'Hey! Hungry? Ask me about cheap food, healthy options, or where to find pizza!' }
-    ]);
+    const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string }[]>(() => {
+        const saved = localStorage.getItem('foodiebot_messages');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error("Failed to parse saved messages", e);
+            }
+        }
+        return [{ role: 'bot', text: 'Hey! Hungry? Ask me about cheap food, healthy options, or where to find pizza!' }];
+    });
+
+    // Save messages to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('foodiebot_messages', JSON.stringify(messages));
+    }, [messages]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,6 +66,18 @@ const Chatbot: React.FC = () => {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    // Prevent background scrolling when chatbot is open (especially useful for mobile)
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -203,7 +228,7 @@ const Chatbot: React.FC = () => {
     if (isAdminPage) return null;
 
     return (
-        <div className={`fixed right-6 z-50 transition-all duration-300 ${floatingBarVisible ? 'bottom-24' : 'bottom-6'}`}>
+        <div className={`fixed right-4 sm:right-6 z-50 transition-all duration-300 ${floatingBarVisible ? 'bottom-24' : 'bottom-4 sm:bottom-6'}`}>
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
@@ -215,7 +240,7 @@ const Chatbot: React.FC = () => {
             )}
 
             {isOpen && (
-                <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px] animate-fade-in-up">
+                <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl w-[calc(100vw-2rem)] sm:w-96 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 h-[500px] max-h-[80vh] animate-fade-in-up">
                     <div className="bg-primary-600 p-4 flex justify-between items-center text-white">
                         <h3 className="font-bold flex items-center gap-2"><MessageCircle size={18} /> FoodieBot</h3>
                         <button onClick={() => setIsOpen(false)} aria-label="Close chat"><X size={20} /></button>
